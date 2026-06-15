@@ -1,0 +1,154 @@
+.card {
+  min-height: calc(100vh - 60px);
+  background: var(--white);
+  border: 1px solid var(--gray-border);
+  border-radius: 14px;
+  box-shadow: var(--panel-shadow);
+  overflow: hidden;
+}
+
+.content {
+  width: min(790px, calc(100% - 72px));
+  margin: 0 auto;
+  padding: 32px 0 70px;
+}
+
+.heroTitle {
+  color: #2f58f3;
+  font-size: 39px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.heroSub {
+  color: #111;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 48px;
+}
+
+.section {
+  margin-bottom: 46px;
+}
+
+.sectionHeading {
+  color: #111;
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 20px;
+}
+
+.body {
+  color: #18181b;
+  font-size: 19px;
+  line-height: 1.48;
+  text-align: justify;
+  margin-bottom: 25px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.stepIconWrap {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--yellow);
+  color: #2154ff;
+  box-shadow: var(--soft-shadow);
+}
+
+.stepIconWrap svg {
+  width: 27px;
+  height: 27px;
+}
+
+.stepTitle {
+  color: #111;
+  font-size: 18px;
+  font-weight: 800;
+  margin: 4px 0 20px;
+}
+
+.bullets {
+  color: #18181b;
+  font-size: 19px;
+  line-height: 1.48;
+}
+
+.bullets p {
+  margin-bottom: 0;
+}
+
+.bullets ul {
+  margin-left: 24px;
+}
+
+.tipsBox {
+  width: min(700px, 100%);
+  margin: 26px auto 0;
+  padding: 30px 38px;
+  background: #eeeeef;
+  border: 1px solid #d7d7dd;
+  border-radius: 12px;
+  box-shadow: var(--soft-shadow);
+}
+
+.tipsTitle {
+  color: #111;
+  font-size: 25px;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+
+.tipsBox .body {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .content {
+    width: calc(100% - 40px);
+    padding: 28px 0 46px;
+  }
+
+  .heroTitle {
+    font-size: 31px;
+  }
+
+  .sectionHeading {
+    font-size: 22px;
+  }
+
+  .body,
+  .bullets {
+    font-size: 16px;
+  }
+
+  .step {
+    grid-template-columns: 46px 1fr;
+    gap: 14px;
+  }
+
+  .stepIconWrap {
+    width: 46px;
+    height: 46px;
+  }
+
+  .tipsBox {
+    padding: 22px;
+  }
+}
