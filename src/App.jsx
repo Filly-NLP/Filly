@@ -1,25 +1,16 @@
-import { useState } from 'react'
-import Sidebar from './components/Sidebar.jsx'
-import WritePage from './pages/WritePage.jsx'
-import AnalyticsPage from './pages/AnalyticsPage.jsx'
-import GuidePage from './pages/GuidePage.jsx'
-import './App.css'
+import { useEffect, useRef } from 'react'
+import template from './fillyTemplate.html?raw'
+import { initFillyApp } from './fillyApp.js'
 
 export default function App() {
-  const [activePage, setActivePage] = useState('write')
+  const appRootRef = useRef(null)
 
-  const pages = {
-    write: <WritePage />,
-    analytics: <AnalyticsPage />,
-    guide: <GuidePage />,
-  }
+  useEffect(() => {
+    if (!appRootRef.current) return
 
-  return (
-    <div className="appShell">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
-      <main className="appMain">
-        {pages[activePage]}
-      </main>
-    </div>
-  )
+    appRootRef.current.innerHTML = template
+    initFillyApp()
+  }, [])
+
+  return <div ref={appRootRef} />
 }
