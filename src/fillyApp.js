@@ -145,6 +145,8 @@ function initNav() {
 // ══════════════════════════════════════════════
 // WRITE VIEW
 // ══════════════════════════════════════════════
+const WORD_LIMIT = 250;
+
 function initWrite() {
   const ta = document.getElementById('editorTextarea');
   ta.addEventListener('input', updateStats);
@@ -157,19 +159,52 @@ function initWrite() {
       setTimeout(()=>{b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';},2000);
     });}
   });
-  document.getElementById('saveBtn').addEventListener('click',()=>showToast('Document saved!'));
+  document.getElementById('saveBtn').addEventListener('click',downloadCorrectedOutput);
   document.getElementById('uploadBtn').addEventListener('click',()=>{
     const inp=document.createElement('input');inp.type='file';inp.accept='.txt';
-    inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{ta.value=ev.target.result;updateStats();};r.readAsText(f);};
+    inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{ta.value=limitWords(ev.target.result);updateStats();};r.readAsText(f);};
     inp.click();
   });
+  updateStats();
 }
 
 function updateStats(){
-  const t=document.getElementById('editorTextarea').value;
+  const ta=document.getElementById('editorTextarea');
+  const limited=limitWords(ta.value);
+  if(limited!==ta.value){
+    const pos=ta.selectionStart;
+    ta.value=limited;
+    ta.setSelectionRange(Math.min(pos,limited.length),Math.min(pos,limited.length));
+    showToast(`Maximum ${WORD_LIMIT} words allowed.`);
+  }
+  const t=ta.value;
   const w=t.trim()?t.trim().split(/\s+/).length:0;
-  document.getElementById('inputStats').textContent=`${w} word${w!==1?'s':''}`;
+  document.getElementById('inputStats').textContent=`${w}/${WORD_LIMIT} word${w!==1?'s':''}`;
   document.getElementById('inputChars').textContent=`${t.length} characters`;
+}
+
+function limitWords(text){
+  const matches=String(text).match(/\S+\s*/g);
+  if(!matches || matches.length<=WORD_LIMIT) return String(text);
+  return matches.slice(0,WORD_LIMIT).join('').trimEnd();
+}
+
+function downloadCorrectedOutput(){
+  const output=document.getElementById('outputDisplay').querySelector('.output-text');
+  const text=output?.textContent.trim();
+  if(!text){showToast('Check text first before saving.');return;}
+  const rawTitle=document.getElementById('docTitle').value.trim() || 'Untitled';
+  const filename=rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g,'').trim() || 'Untitled';
+  const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`${filename}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Corrected output downloaded.');
 }
 
 function processText(){
