@@ -34,15 +34,12 @@ const NORM = {
   'mhal':{to:'mahal',type:'norm',label:'Abbreviation'},'lbas':{to:'labas',type:'norm',label:'Abbreviation'},
 };
 
-const METRICS = {
-  precision:82.45, recall:76.12, f05:80.91, err:71.33,
-  bars:{pN:85,pG:79,rN:72,rG:80,fN:81,fG:79,eN:68,eG:74},
-  donut:[
-    {label:'Abbreviations',value:42,color:'#FFD23F'},
-    {label:'Grammar Errors',value:28,color:'#3B5FE6'},
-    {label:'Spelling / Leet',value:18,color:'#FFED99'},
-    {label:'Punctuation',value:12,color:'#8BA4FB'},
-  ]
+// Analytics state
+const ANALYTICS = {
+  unnormalizedWords: 0,
+  grammarFound: 0,
+  grammarFixed: 0,
+  grammarIgnored: 0
 };
 
 // ══════════════════════════════════════════════
@@ -132,7 +129,7 @@ function initNav() {
       if(t) t.classList.add('active');
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebarOverlay').classList.remove('active');
-      if(v==='analytics') setTimeout(animateMetrics,200);
+      if(v==='analytics') setTimeout(updateAnalytics,200);
     });
   });
   const tog=document.getElementById('menuToggle'),sb=document.getElementById('sidebar'),ov=document.getElementById('sidebarOverlay');
@@ -219,6 +216,8 @@ function processText(){
 
   setTimeout(()=>{
     const {corrected, suggestions} = analyze(text);
+    // Track analytics
+    trackAnalytics(suggestions);
     // Output
     let html = corrected;
     suggestions.forEach(s=>{
@@ -280,10 +279,10 @@ function renderRecs(sugs){
     body.appendChild(card);
   });
   body.querySelectorAll('.sug-accept').forEach(b=>{
-    b.addEventListener('click',()=>{applyFix(b.dataset.f,b.dataset.t);dismiss(b);});
+    b.addEventListener('click',()=>{applyFix(b.dataset.f,b.dataset.t);dismiss(b,'accept');});
   });
   body.querySelectorAll('.sug-ignore').forEach(b=>{
-    b.addEventListener('click',()=>dismiss(b));
+    b.addEventListener('click',()=>dismiss(b,'ignore'));
   });
 }
 
@@ -293,8 +292,12 @@ function applyFix(from,to){
   updateStats();
 }
 
-function dismiss(btn){
+function dismiss(btn, action){
   const c=btn.closest('.sug-card');
+  // Track analytics action
+  if (action === 'accept') { ANALYTICS.grammarFixed++; }
+  else if (action === 'ignore') { ANALYTICS.grammarIgnored++; }
+  updateAnalytics();
   c.style.opacity='0';c.style.transform='translateX(16px)';c.style.transition='all 0.25s ease';
   setTimeout(()=>{
     c.remove();
@@ -309,38 +312,53 @@ function dismiss(btn){
 // ══════════════════════════════════════════════
 // ANALYTICS
 // ══════════════════════════════════════════════
-let metricsReady=false;
-function animateMetrics(){
-  if(metricsReady)return;metricsReady=true;
-  const d=METRICS;
-  animNum(document.getElementById('metricPrecision'),d.precision);
-  animNum(document.getElementById('metricRecall'),d.recall);
-  animNum(document.getElementById('metricF05'),d.f05);
-  animNum(document.getElementById('metricERR'),d.err);
-  setTimeout(()=>{
-    document.getElementById('precisionBar').style.width=d.precision+'%';
-    document.getElementById('recallBar').style.width=d.recall+'%';
-    document.getElementById('f05Bar').style.width=d.f05+'%';
-    document.getElementById('errBar').style.width=d.err+'%';
-  },100);
-  setTimeout(()=>{
-    setBar('bar-p-n',d.bars.pN);setBar('bar-p-g',d.bars.pG);
-    setBar('bar-r-n',d.bars.rN);setBar('bar-r-g',d.bars.rG);
-    setBar('bar-f-n',d.bars.fN);setBar('bar-f-g',d.bars.fG);
-    setBar('bar-e-n',d.bars.eN);setBar('bar-e-g',d.bars.eG);
-  },300);
-  setTimeout(animDonut,400);
+function updateAnalytics() {
+  const a = ANALYTICS;
+  // Update stat values
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setEl('statUnnormalized', a.unnormalizedWords);
+  setEl('statFound', a.grammarFound);
+  setEl('statFixed', a.grammarFixed);
+  setEl('statIgnored', a.grammarIgnored);
+
+  // Quality score: 100 minus total issues (minimum 0)
+  const totalIssues = a.unnormalizedWords + a.grammarFound;
+  const score = Math.max(0, 100 - totalIssues * 5);
+  setEl('qualityScore', score);
+
+  // Update ring
+  const ring = document.getElementById('qualityRing');
+  if (ring) {
+    const circ = 2 * Math.PI * 52;
+    const offset = circ - (score / 100) * circ;
+    ring.style.strokeDasharray = circ;
+    ring.style.strokeDashoffset = offset;
+  }
+
+  // Update message
+  const msgEl = document.getElementById('qualityMessage');
+  if (msgEl) {
+    if (score >= 90) msgEl.textContent = 'Excellent! Your Filipino writing is well-formed.';
+    else if (score >= 70) msgEl.textContent = 'Good writing quality. A few issues were found.';
+    else if (score >= 50) msgEl.textContent = 'Fair quality. Consider reviewing the suggestions.';
+    else msgEl.textContent = 'Needs improvement. Review and accept the suggestions.';
+  }
 }
-function animNum(el,target){if(!el)return;const dur=1200,start=performance.now();(function tick(now){const p=Math.min((now-start)/dur,1);el.textContent=(p*(1-Math.pow(1-p,2))*target/(p||1)).toFixed(2);if(p>=1){el.textContent=target.toFixed(2);return;}requestAnimationFrame(tick);})(performance.now());}
-function setBar(id,v){const el=document.getElementById(id);if(!el)return;el.style.height=v+'%';const s=el.querySelector('.bar-v');if(s)s.textContent=v+'%';}
-function animDonut(){
-  const data=METRICS.donut,total=data.reduce((s,d)=>s+d.value,0),circ=2*Math.PI*80;
-  let off=0;
-  data.forEach((seg,i)=>{const el=document.getElementById(`ds${i+1}`);if(!el)return;const dash=(seg.value/total)*circ;el.style.stroke=seg.color;el.setAttribute('stroke-dasharray',`${dash} ${circ-dash}`);el.setAttribute('stroke-dashoffset',-off);off+=dash;});
-  const tEl=document.getElementById('donutTotal');
-  if(tEl){animNum(tEl,total);setTimeout(()=>{tEl.textContent=total;},1300);}
-  const leg=document.getElementById('donutLegend');
-  if(leg)leg.innerHTML=data.map(d=>`<div class="dl-item"><span class="dl-dot" style="background:${d.color}"></span><span>${d.label}</span><span class="dl-val">${d.value}%</span></div>`).join('');
+
+function trackAnalytics(suggestions) {
+  // Reset counts
+  ANALYTICS.unnormalizedWords = 0;
+  ANALYTICS.grammarFound = 0;
+  ANALYTICS.grammarFixed = 0;
+  ANALYTICS.grammarIgnored = 0;
+
+  suggestions.forEach(s => {
+    if (s.type === 'norm') {
+      ANALYTICS.unnormalizedWords++;
+    } else {
+      ANALYTICS.grammarFound++;
+    }
+  });
 }
 
 // ══════════════════════════════════════════════
@@ -357,7 +375,10 @@ function escRx(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
 
 export function initFillyApp() {
-  metricsReady = false;
+  ANALYTICS.unnormalizedWords = 0;
+  ANALYTICS.grammarFound = 0;
+  ANALYTICS.grammarFixed = 0;
+  ANALYTICS.grammarIgnored = 0;
   initLanding();
   initNav();
   initWrite();
