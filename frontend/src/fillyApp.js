@@ -430,8 +430,6 @@ function renderEditor() {
       if (sug.status === 'pending') {
         const className = sug.type === 'norm' ? 'underline-norm' : 'underline-gram';
         htmlParts.push(`<span class="original-highlight ${className}" data-sug-id="${sug.id}">${escH(seg.text)}</span>`);
-      } else if (sug.status === 'accepted') {
-        htmlParts.push(escH(sug.to));
       } else {
         htmlParts.push(escH(sug.from));
       }
