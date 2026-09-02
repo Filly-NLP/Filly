@@ -137,6 +137,30 @@ function initNav() {
   if(ov)ov.addEventListener('click',()=>{sb.classList.remove('open');ov.classList.remove('active');});
   const back=document.getElementById('backToLanding');
   if(back)back.addEventListener('click',goToLanding);
+
+  // Theme toggle (Sidebar & Landing Page)
+  const toggleBtnSidebar = document.getElementById('themeToggle');
+  const toggleBtnLanding = document.getElementById('landingThemeToggle');
+  const btns = [toggleBtnSidebar, toggleBtnLanding].filter(Boolean);
+  
+  // Light mode is default — only go dark if explicitly saved
+  const saved = localStorage.getItem('filly-theme');
+  if(saved !== 'dark'){
+    document.body.classList.add('light-mode');
+    btns.forEach(btn => btn.querySelector('.theme-label') && (btn.querySelector('.theme-label').textContent = 'Dark Mode'));
+  }
+  
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.body.classList.toggle('light-mode');
+      const isLight = document.body.classList.contains('light-mode');
+      localStorage.setItem('filly-theme', isLight ? 'light' : 'dark');
+      btns.forEach(b => {
+        const label = b.querySelector('.theme-label');
+        if(label) label.textContent = isLight ? 'Dark Mode' : 'Light Mode';
+      });
+    });
+  });
 }
 
 // ══════════════════════════════════════════════
