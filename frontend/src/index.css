@@ -201,7 +201,7 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 .landing.exit{animation:landingExit 0.6s cubic-bezier(0.4,0,0.2,1) forwards}
 @keyframes landingExit{to{opacity:0;transform:scale(1.02);pointer-events:none}}
 .app-wrapper.enter{animation:appEnter 0.5s ease 0.3s forwards;opacity:0}
-@keyframes appEnter{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes appEnter{from{opacity:0}to{opacity:1}}
 
 
 /* ══════════════════════════════════════════════
@@ -267,7 +267,7 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 
 /* Panels */
 .write-panel{display:flex;flex-direction:column}
-.recs-panel{display:flex;flex-direction:column;overflow:hidden}
+.recs-panel{display:flex;flex-direction:column}
 .panel-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--glass-border)}
 .panel-head h3{font-family:var(--font-h);font-weight:700;font-size:0.92rem;flex:1}
 .panel-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -306,7 +306,7 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Recommendations Panel */
-.recs-panel{position:sticky;top:32px;max-height:calc(100vh - 80px);margin-top:52px;overflow:hidden;display:flex;flex-direction:column}
+.recs-panel{margin-top:52px;display:flex;flex-direction:column}
 .recs-count-bar{padding:10px 20px;font-size:0.8rem;color:var(--text-3);font-weight:500;border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center}
 .recs-bulk-actions{display:flex;gap:8px}
 .bulk-btn{padding:4px 10px;border-radius:var(--radius-sm);font-size:0.7rem;font-weight:600;cursor:pointer;border:none;font-family:var(--font-b);transition:all var(--ease)}
