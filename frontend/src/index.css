@@ -855,6 +855,19 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 .light-mode .theme-toggle .sun-icon{display:block}
 .light-mode .theme-toggle .moon-icon{display:none}
 
+
+.brand-logo-img {
+  border-radius: 10px;
+}
+
+/* Default (dark mode): show dark-mode logo, hide light-mode logo */
+.logo-light { display: none; }
+.logo-dark  { display: inline-block; }
+
+/* When body has .light-mode: flip which one shows */
+.light-mode .logo-light { display: inline-block; }
+.light-mode .logo-dark  { display: none; }
+
 /* ══════════════════════════════════════════════
    VISUAL POLISH – Animations & Effects
 ══════════════════════════════════════════════ */
