@@ -104,6 +104,7 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 /* Nav */
 .landing-nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;padding:18px 48px;background:transparent;transition:all var(--ease)}
 .landing-nav.scrolled{background:rgba(6,13,42,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border);padding:14px 48px}
+.lnav-logo .brand-logo-img{height:60px;width:auto}
 .lnav-logo{display:flex;align-items:center;gap:12px}
 .lnav-logo span{font-family:var(--font-h);font-weight:900;font-size:1.3rem;letter-spacing:2px;color:var(--text-1)}
 .lnav-links{display:flex;gap:6px;margin-left:auto;margin-right:20px}
@@ -212,8 +213,11 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 
 /* Sidebar */
 .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:linear-gradient(175deg,#080E28,#0B153D);backdrop-filter:blur(20px);display:flex;flex-direction:column;z-index:100;border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;overflow-x:hidden;transition:background 0.4s ease,border-color 0.4s ease}
-.sidebar-header{display:flex;align-items:center;gap:14px;padding:28px 22px 24px}
-.sidebar-header svg{filter:drop-shadow(0 2px 8px rgba(255,210,63,0.3))}
+.sidebar-header{display:flex;align-items:center;justify-content:center;padding:20px 25px 1px}.sidebar-logo-img{max-width:70%;height:auto}
+.logo-light{display:none}
+.logo-dark{display:inline-block}
+.light-mode .logo-light{display:inline-block}
+.light-mode .logo-dark{display:none}
 .logo-name{font-family:var(--font-h);font-weight:900;font-size:1.3rem;letter-spacing:2px}
 .logo-subtitle{display:block;font-size:0.72rem;color:var(--text-4);font-weight:500;margin-top:-2px}
 .sidebar-nav{padding:8px 12px;display:flex;flex-direction:column;gap:3px}
@@ -674,7 +678,7 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
   background: linear-gradient(175deg, #FFFFFF, #F0F4FF);
   border-right: 1px solid rgba(11,21,61,0.08);
 }
-.light-mode .sidebar-header svg{filter:drop-shadow(0 2px 8px rgba(255,210,63,0.25))}
+
 .light-mode .logo-name{color:#0E1A47}
 .light-mode .logo-subtitle{color:var(--text-3)}
 .light-mode .nav-label{color:var(--text-4)}
@@ -878,7 +882,7 @@ body{font-family:var(--font-b);background:var(--blue-950);color:var(--text-1);li
 
 /* Logo subtle glow pulse */
 @keyframes logoPulse{0%,100%{filter:drop-shadow(0 2px 8px rgba(255,210,63,0.3))}50%{filter:drop-shadow(0 2px 14px rgba(255,210,63,0.5))}}
-.sidebar-header svg{animation:logoPulse 3s ease-in-out infinite}
+
 
 /* Check button shimmer effect */
 .check-btn{position:relative;overflow:hidden}
