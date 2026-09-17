@@ -237,10 +237,10 @@ function initWrite() {
   });
 
   document.getElementById('checkBtn').addEventListener('click', processText);
-  document.getElementById('copyBtn').addEventListener('click', () => {
+document.getElementById('copyBtn').addEventListener('click', () => {
     const text = getOutputPlainText();
-    if(text){ navigator.clipboard.writeText(text).then(()=>{
-      const b=document.getElementById('copyBtn');
+    if(!text){showToast('There is no corrected text to copy.');return;}
+    if(text){ navigator.clipboard.writeText(text).then(()=>{      const b=document.getElementById('copyBtn');
       b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
       setTimeout(()=>{b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';},2000);
     });}
@@ -303,8 +303,7 @@ function limitWords(text){
 
 function downloadCorrectedOutput(){
   const text=getOutputPlainText();
-  if(!text){showToast('Check text first before saving.');return;}
-  const rawTitle=document.getElementById('docTitle').value.trim() || 'Untitled';
+if(!text){showToast('There is no corrected text to save.');return;}  const rawTitle=document.getElementById('docTitle').value.trim() || 'Untitled';
   const filename=rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g,'').trim() || 'Untitled';
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -395,7 +394,7 @@ function processApiResponse(text, data) {
 
 function processText(){
   const ta=document.getElementById('editorTextarea'), text=ta.value.trim();
-  if(!text){ta.focus();return;}
+  if(!text){showToast('Please enter some text to check.');ta.focus();return;}
   const out=document.getElementById('outputDisplay');
   out.innerHTML='<div class="processing-state"><div class="spinner"></div><span style="color:var(--text-3);font-size:0.9rem;">Processing…</span></div>';
   document.getElementById('suggestionsBar') && (document.getElementById('suggestionsBar').style.display='none');
