@@ -1,358 +1,352 @@
-import re
+"""Filipino character n-gram spelling normalizer.
+
+The rule induction and candidate recursion follow the N-Gram + DLD V1 code in
+``efficient-spelling-normalization-filipino-main.zip``. Runtime resources are
+built by ``backend/scripts/train_normalizer.py`` and loaded once per process.
+Offsets returned here are Python Unicode code-point offsets into the original
+input text.
+"""
+
+from __future__ import annotations
+
+import json
+import hashlib
 import logging
+import re
+import unicodedata
+from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 from app.schemas.schemas import NormalizationItem
 
 logger = logging.getLogger(__name__)
 
-# ─── Filipino Normalization Dictionary ──────────────────────────────
-_SLANG_MAP: dict[str, str] = {
-    # ── Pronouns ──
-    "aq": "ako",
-    "aq2": "ako",
-    "ko": "ko",
-    "u": "ikaw",
-    "kau": "ikaw",
-    "ikw": "ikaw",
-    "nten": "niyan",
-    "nyan": "niyan",
-    "nyn": "niyan",
-    "cla": "sila",
-    "cya": "siya",
-    "xa": "siya",
-    "tyo": "tayo",
-    "tau": "tayo",
-    "kmi": "kami",
-    "kme": "kami",
-
-    # ── Common Words ──
-    "nmn": "naman",
-    "nmn2": "naman",
-    "nman": "naman",
-    "po": "po",
-    "pu": "po",
-    "pow": "po",
-    "kc": "kasi",
-    "kse": "kasi",
-    "kasi2": "kasi",
-    "kz": "kasi",
-    "tlga": "talaga",
-    "tlaga": "talaga",
-    "tlg": "talaga",
-    "cge": "sige",
-    "sge": "sige",
-    "cgi": "sige",
-    "cguro": "siguro",
-    "cgro": "siguro",
-    "pra": "para",
-    "pra2": "para",
-    "pru": "para",
-    "lng": "lang",
-    "lng2": "lang",
-    "lngg": "lang",
-    "lam": "alam",
-    "alm": "alam",
-    "din": "din",
-    "dn": "din",
-    "den": "din",
-    "dba": "di ba",
-    "dbi": "di ba",
-    "db": "di ba",
-    "dpat": "dapat",
-    "dpt": "dapat",
-    "pde": "pwede",
-    "pwd": "pwede",
-    "pwde": "pwede",
-    "pwdi": "pwede",
-    "gsto": "gusto",
-    "gsto2": "gusto",
-    "gsto3": "gusto",
-    "mganda": "maganda",
-    "gnda": "maganda",
-
-    # ── Greetings & Responses ──
-    "musta": "kumusta",
-    "kamusta": "kumusta",
-    "oo": "oo",
-    "opo": "opo",
-    "opow": "opo",
-    "tnx": "salamat",
-    "ty": "salamat",
-    "slmat": "salamat",
-    "slmt": "salamat",
-    "tnks": "salamat",
-    "pki": "paki",
-
-    # ── Verbs / Actions ──
-    "gwa": "gawa",
-    "gwa2": "gawa",
-    "pnta": "punta",
-    "pnta2": "punta",
-    "pnta3": "punta",
-    "pnts": "punta",
-    "kain": "kain",
-    "kn": "kain",
-    "alis": "alis",
-    "lis": "alis",
-    "balik": "balik",
-    "blik": "balik",
-
-    # ── Adjectives / Adverbs ──
-    "ang": "ang",
-    "mhal": "mahal",
-    "mhl": "mahal",
-    "mgaling": "magaling",
-    "mgling": "magaling",
-    "nkakatawa": "nakakatawa",
-    "nkktawa": "nakakatawa",
-    "grbe": "grabe",
-    "grabeh": "grabe",
-
-    # ── Conjunctions / Particles ──
-    "at": "at",
-    "tpos": "tapos",
-    "tps": "tapos",
-    "pos": "tapos",
-    "tas": "tapos",
-    "pru": "pero",
-    "pro": "pero",
-    "pro2": "pero",
-    "proo": "pero",
-    "eh": "eh",
-    "na": "na",
-    "pa": "pa",
-    "ba": "ba",
-
-    # ── Question Words ──
-    "ano": "ano",
-    "anu": "ano",
-    "anu2": "ano",
-    "anong": "anong",
-    "asan": "nasaan",
-    "nasan": "nasaan",
-    "san": "nasaan",
-    "bkt": "bakit",
-    "bkit": "bakit",
-    "pano": "paano",
-    "panu": "paano",
-    "pano2": "paano",
-    "panu2": "paano",
-    "klan": "kailan",
-    "kelan": "kailan",
-    "kilan": "kailan",
-
-    # ── Numbers / Time ──
-    "isa": "isa",
-    "is2": "isa",
-    "dalawa": "dalawa",
-    "dlwa": "dalawa",
-    "tatlo": "tatlo",
-    "ttlo": "tatlo",
-    "mamaya": "mamaya",
-    "mmya": "mamaya",
-    "mya": "mamaya",
-    "bkas": "bukas",
-    "bkaz": "bukas",
-    "kahapon": "kahapon",
-    "khpon": "kahapon",
-    "ngayon": "ngayon",
-    "ngyn": "ngayon",
-    "ngyn2": "ngayon",
-
-    # ── Common Texting Shortcuts ──
-    "hnd": "hindi",
-    "hinde": "hindi",
-    "hdi": "hindi",
-    "di": "hindi",
-    "wla": "wala",
-    "wl": "wala",
-    "meron": "meron",
-    "mron": "meron",
-    "mrn": "meron",
-    "ung": "iyong",
-    "yung": "iyong",
-    "yng": "iyong",
-    "ng": "ng",
-}
-
-_SKIP_WORDS: set[str] = {
-    # Single-letter / very short function words
-    "i", "a", "o", "e", "ni", "si", "ay", "sa", "ng", "na", "pa",
-    "po", "ba", "at", "an", "ko", "ka", "mo", "to", "ta",
-    # Common valid words
-    "may", "ang", "mga", "din", "oo", "eh", "ano", "kain",
-    "alis", "balik", "nang", "nag", "lang", "rin", "raw", "daw",
-    "sila", "siya", "tayo", "kami", "ikaw", "ako", "naman",
-    "kasi", "talaga", "sige", "siguro", "para", "alam",
-    "gusto", "gawa", "punta", "mahal", "maganda", "magaling",
-    "grabe", "tapos", "pero", "nasaan", "bakit", "paano",
-    "kailan", "isa", "dalawa", "tatlo", "mamaya", "bukas",
-    "kahapon", "ngayon", "hindi", "wala", "meron", "dapat",
-    "pwede", "kumusta", "salamat", "opo", "paki",
-}
-
-_MIN_WORD_LENGTH = 2
+_ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "normalizer"
+_URL_RE = re.compile(r"(?i)(?:https?://|ftp://|www\.)\S+")
+_EMAIL_RE = re.compile(r"(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+")
 
 
-def _damerau_levenshtein_distance(s1: str, s2: str) -> int:
-    len1 = len(s1)
-    len2 = len(s2)
+def _resolve_artifact_paths(
+    artifact_dir: Path | str,
+    rules_path: Path | str | None,
+    vocabulary_path: Path | str | None,
+    metadata_path: Path | str | None,
+) -> tuple[Path, Path, Path]:
+    artifact_dir = Path(artifact_dir)
+    rules = Path(rules_path) if rules_path is not None else artifact_dir / "rules.json"
+    vocabulary = (
+        Path(vocabulary_path) if vocabulary_path is not None else artifact_dir / "vocabulary.txt"
+    )
+    if metadata_path is not None:
+        metadata = Path(metadata_path)
+    elif rules_path is not None:
+        metadata = rules.parent / "metadata.json"
+    elif vocabulary_path is not None:
+        metadata = vocabulary.parent / "metadata.json"
+    else:
+        metadata = artifact_dir / "metadata.json"
+    return rules.resolve(), vocabulary.resolve(), metadata.resolve()
 
-    d: dict[tuple[int, int], int] = {}
-    for i in range(-1, len1 + 1):
-        d[(i, -1)] = i + 1
-    for j in range(-1, len2 + 1):
-        d[(-1, j)] = j + 1
 
-    for i in range(len1):
-        for j in range(len2):
-            cost = 0 if s1[i] == s2[j] else 1
-            d[(i, j)] = min(
-                d[(i - 1, j)] + 1,       # deletion
-                d[(i, j - 1)] + 1,        # insertion
-                d[(i - 1, j - 1)] + cost,  # substitution
+def damerau_levenshtein_distance(left: str, right: str) -> int:
+    """Return the unrestricted Damerau–Levenshtein distance between strings."""
+    left_len, right_len = len(left), len(right)
+    max_distance = left_len + right_len
+    matrix = [[0] * (right_len + 2) for _ in range(left_len + 2)]
+    matrix[0][0] = max_distance
+    for i in range(left_len + 1):
+        matrix[i + 1][0] = max_distance
+        matrix[i + 1][1] = i
+    for j in range(right_len + 1):
+        matrix[0][j + 1] = max_distance
+        matrix[1][j + 1] = j
+
+    last_seen: dict[str, int] = {}
+    for i in range(1, left_len + 1):
+        last_match_column = 0
+        for j in range(1, right_len + 1):
+            prior_row = last_seen.get(right[j - 1], 0)
+            prior_column = last_match_column
+            substitution_cost = 1
+            if left[i - 1] == right[j - 1]:
+                substitution_cost = 0
+                last_match_column = j
+
+            matrix[i + 1][j + 1] = min(
+                matrix[i][j] + substitution_cost,
+                matrix[i + 1][j] + 1,
+                matrix[i][j + 1] + 1,
+                matrix[prior_row][prior_column]
+                + (i - prior_row - 1)
+                + 1
+                + (j - prior_column - 1),
             )
-            if i > 0 and j > 0 and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[(i - 2, j - 2)] + 1)
-
-    return d[(len1 - 1, len2 - 1)]
+        last_seen[left[i - 1]] = i
+    return matrix[left_len + 1][right_len + 1]
 
 
-def classify_normalization(word: str) -> str:
-    word = word.lower()
-    slangs = {
-        "aq", "aq2", "u", "kau", "ikw", "nten", "nyan", "nyn", "cla", "cya", "xa", "tyo", "tau", "kmi", "kme",
-        "po", "pu", "pow", "kc", "kse", "kz"
-    }
-    spelling_variations = {
-        "nman", "kasi2", "sge", "cgi", "cguro", "cgro", "pra2", "pru", "lngg", "dba", "dbi", "db", "pwde",
-        "pwdi", "gsto2", "gsto3", "mganda", "gnda", "kamusta", "opow", "gwa2", "pnta2", "pnta3", "pnts",
-        "kn", "lis", "blik", "mhl", "mgling", "nkktawa", "grabeh", "tpos", "tps", "pos", "tas", "pro2",
-        "proo", "anu", "anu2", "anong", "asan", "nasan", "san", "pano2", "panu", "panu2", "klan", "kelan",
-        "kilan", "is2", "dlwa", "ttlo", "mmya", "mya", "bkas", "bkaz", "khpon", "ngyn", "ngyn2", "hinde",
-        "hdi", "wl", "mrn", "ung", "yng"
-    }
-    if word in slangs:
-        return "slang"
-    if word in spelling_variations:
-        return "spelling_variation"
-    return "abbreviation"
+def _apply_case(source: str, suggestion: str) -> str:
+    if source.isupper():
+        return suggestion.upper()
+    if source and source[0].isupper():
+        return suggestion[0].upper() + suggestion[1:]
+    return suggestion
 
 
-class FilNormalizer:
+def _is_word_letter(character: str) -> bool:
+    category = unicodedata.category(character)
+    return category.startswith("L") or category.startswith("M")
+
+
+def _protected_spans(text: str) -> list[tuple[int, int]]:
+    spans = [match.span() for pattern in (_URL_RE, _EMAIL_RE) for match in pattern.finditer(text)]
+    return sorted(spans)
+
+
+class FilipinoNormalizer:
+    """Load learned n-gram rules and normalize words or complete sentences."""
+
     def __init__(
         self,
-        custom_mappings: Optional[dict[str, str]] = None,
-        max_edit_distance: int = 1,
-        min_confidence: float = 0.6,
+        artifact_dir: Path | str = _ARTIFACT_DIR,
+        *,
+        rules_path: Path | str | None = None,
+        vocabulary_path: Path | str | None = None,
+        metadata_path: Path | str | None = None,
+        max_edit_distance: int | None = 2,
     ):
-        self.mappings: dict[str, str] = {**_SLANG_MAP}
-        if custom_mappings:
-            self.mappings.update(custom_mappings)
-
+        if max_edit_distance is not None and max_edit_distance < 0:
+            raise ValueError("max_edit_distance must be non-negative or None")
         self.max_edit_distance = max_edit_distance
-        self.min_confidence = min_confidence
+        rules_path, vocabulary_path, metadata_path = _resolve_artifact_paths(
+            artifact_dir,
+            rules_path,
+            vocabulary_path,
+            metadata_path,
+        )
+        self._resource_signature = (rules_path, vocabulary_path, metadata_path)
+        artifact_dir = Path(artifact_dir)
 
-        self._by_first_char: dict[str, list[str]] = {}
-        for key in self.mappings:
-            ch = key[0] if key else ""
-            self._by_first_char.setdefault(ch, []).append(key)
+        if not metadata_path.is_file() or not rules_path.is_file() or not vocabulary_path.is_file():
+            raise FileNotFoundError(
+                f"Normalizer artifacts are incomplete in {artifact_dir}; "
+                "build them with backend/scripts/train_normalizer.py"
+            )
+
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata.get("schema_version") != 1:
+            raise ValueError(f"Unsupported normalizer artifact schema in {metadata_path}")
+        for filename, path in (("rules.json", rules_path), ("vocabulary.txt", vocabulary_path)):
+            expected_hash = metadata.get("artifacts", {}).get(filename, {}).get("sha256")
+            if not expected_hash:
+                raise ValueError(f"Missing {filename} checksum in {metadata_path}")
+            actual_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+            if actual_hash != expected_hash:
+                raise ValueError(f"Normalizer artifact checksum mismatch: {path}")
+
+        payload = json.loads(rules_path.read_text(encoding="utf-8"))
+        if payload.get("schema_version") != 1:
+            raise ValueError(f"Unsupported rule schema in {rules_path}")
+        self.max_ngram = int(payload["max_ngram"])
+        self.candidate_cutoff = int(payload["candidate_cutoff"])
+        self.rules: dict[str, dict[str, float]] = payload["rules"]
+        self.vocabulary = {
+            line.strip().lower()
+            for line in vocabulary_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        if not self.rules or not self.vocabulary:
+            raise ValueError(f"Normalizer artifacts contain no usable rules or vocabulary: {artifact_dir}")
+
+    @staticmethod
+    def _collect_candidates(
+        word: str,
+        rules: dict[str, dict[str, float]],
+        max_ngram: int,
+        cutoff: int,
+    ) -> dict[str, float]:
+        """Port the source archive's recursive candidate-generation procedure."""
+
+        @lru_cache(maxsize=None)
+        def generate(remaining: str) -> tuple[tuple[str, float], ...]:
+            if remaining == "":
+                return (("", 1.0),)
+            if len(remaining) == 1:
+                if remaining in rules:
+                    return tuple(rules[remaining].items())
+                return ((remaining, 1.0), ("", 1.0))
+
+            result: dict[str, float] = {}
+            for ngram_size in range(2, max_ngram + 1):
+                if len(remaining) < ngram_size:
+                    continue
+                current = remaining[:ngram_size]
+                if current in rules:
+                    replacements = rules[current]
+                    for replacement, rule_weight in replacements.items():
+                        suffix = remaining[ngram_size:] if replacement == current else remaining[1:]
+                        next_candidates = dict(generate(suffix))
+                        next_candidates[""] = 1.0
+                        for next_part, next_weight in next_candidates.items():
+                            result[replacement + next_part] = rule_weight * next_weight
+                else:
+                    next_candidates = dict(generate(remaining[1:]))
+                    for next_part, next_weight in next_candidates.items():
+                        result[remaining[0] + next_part] = next_weight
+
+            if not result:
+                result[remaining] = 1.0
+            cutoff_values = sorted(result.values(), reverse=True)[:cutoff]
+            threshold = cutoff_values[-1]
+            result = {candidate: weight for candidate, weight in result.items() if weight >= threshold}
+            return tuple(result.items())
+
+        return dict(generate(word))
+
+    def _normalize_lowercase(self, word: str) -> tuple[str, Optional[int]]:
+        lowered = word.lower()
+        if len(lowered) < 2 or len(lowered) > 128 or lowered in self.vocabulary:
+            return word, None
+
+        candidates = self._collect_candidates(
+            lowered,
+            self.rules,
+            self.max_ngram,
+            self.candidate_cutoff,
+        )
+        matches = [
+            candidate
+            for candidate in candidates
+            if candidate.strip()
+            and all(part.lower() in self.vocabulary for part in candidate.strip().split())
+        ]
+        if not matches:
+            # The research implementation falls back to the entire vocabulary
+            # here. For production text, that can rewrite unrelated unknowns;
+            # an unsupported token therefore stays unchanged.
+            return word, None
+
+        # ``min`` is stable, so tied distances keep candidate insertion order
+        # while each candidate's distance is computed only once.
+        best = matches[0]
+        distance = damerau_levenshtein_distance(lowered, best)
+        for candidate in matches[1:]:
+            candidate_distance = damerau_levenshtein_distance(lowered, candidate)
+            if candidate_distance < distance:
+                best, distance = candidate, candidate_distance
+        if best == lowered or (
+            self.max_edit_distance is not None and distance > self.max_edit_distance
+        ):
+            return word, None
+        return best.strip(), distance
+
+    def normalize_word(self, word: str) -> str:
+        """Return one normalized word, preserving its leading capitalization."""
+        normalized, _distance = self._normalize_lowercase(word)
+        return _apply_case(word, normalized)
+
+    def normalize_text(self, text: str) -> tuple[str, list[NormalizationItem]]:
+        """Normalize eligible words, returning text and original-text edits.
+
+        URLs and email addresses are protected as complete spans. Digits and
+        underscores attached to a word also make that token ineligible. The
+        returned offsets are Python code-point offsets into ``text``.
+        """
+        if not text:
+            return text, []
+
+        protected = _protected_spans(text)
+        changes: list[NormalizationItem] = []
+        index = 0
+        while index < len(text):
+            if not text[index].isalpha():
+                index += 1
+                continue
+            start = index
+            index += 1
+            while index < len(text) and _is_word_letter(text[index]):
+                index += 1
+            end = index
+
+            if (start > 0 and (text[start - 1].isdigit() or text[start - 1] == "_")) or (
+                end < len(text) and (text[end].isdigit() or text[end] == "_")
+            ):
+                continue
+            if any(start < protected_end and end > protected_start for protected_start, protected_end in protected):
+                continue
+
+            original = text[start:end]
+            normalized, _distance = self._normalize_lowercase(original)
+            suggestion = _apply_case(original, normalized)
+            if suggestion != original:
+                changes.append(
+                    NormalizationItem(
+                        word=original,
+                        suggestion=suggestion,
+                        start=start,
+                        end=end,
+                        type="normalization",
+                        confidence=0.0,
+                        category="spelling_variation",
+                    )
+                )
+
+        normalized_text = text
+        for change in reversed(changes):
+            normalized_text = (
+                normalized_text[: change.start]
+                + change.suggestion
+                + normalized_text[change.end :]
+            )
+        return normalized_text, changes
 
     def normalize(self, text: str) -> list[NormalizationItem]:
-        items: list[NormalizationItem] = []
-        if not text or not text.strip():
-            return items
-
-        for match in re.finditer(r'\S+', text):
-            raw_word = match.group()
-            start = match.start()
-            end = match.end()
-
-            clean = re.sub(r'^[^\w]+|[^\w]+$', '', raw_word, flags=re.UNICODE)
-            if not clean or len(clean) < _MIN_WORD_LENGTH:
-                continue
-
-            lower = clean.lower()
-
-            if lower in _SKIP_WORDS:
-                continue
-
-            if lower in self.mappings:
-                formal = self.mappings[lower]
-                if lower != formal.lower():
-                    offset = raw_word.lower().find(lower)
-                    adj_start = start + offset
-                    adj_end = adj_start + len(clean)
-                    items.append(NormalizationItem(
-                        word=clean,
-                        suggestion=formal,
-                        start=adj_start,
-                        end=adj_end,
-                        type="normalization",
-                        confidence=1.0,
-                        category=classify_normalization(lower),
-                    ))
-                continue
-
-            if len(lower) <= 8:
-                best_match = self._fuzzy_match(lower)
-                if best_match:
-                    formal, confidence = best_match
-                    if confidence >= self.min_confidence and lower != formal.lower():
-                        offset = raw_word.lower().find(lower)
-                        adj_start = start + offset
-                        adj_end = adj_start + len(clean)
-                        items.append(NormalizationItem(
-                            word=clean,
-                            suggestion=formal,
-                            start=adj_start,
-                            end=adj_end,
-                            type="normalization",
-                            confidence=round(confidence, 2),
-                            category=classify_normalization(lower),
-                        ))
-
-        return items
-
-    def _fuzzy_match(self, word: str) -> Optional[tuple[str, float]]:
-        best_key: Optional[str] = None
-        best_dist = self.max_edit_distance + 1
-
-        first_char = word[0] if word else ""
-        candidates: list[str] = []
-        for ch in {first_char, chr(ord(first_char) - 1) if first_char > 'a' else first_char,
-                    chr(ord(first_char) + 1) if first_char < 'z' else first_char}:
-            candidates.extend(self._by_first_char.get(ch, []))
-
-        for key in self.mappings:
-            if abs(len(key) - len(word)) <= self.max_edit_distance and key not in candidates:
-                candidates.append(key)
-
-        for key in candidates:
-            if abs(len(key) - len(word)) > self.max_edit_distance:
-                continue
-
-            dist = _damerau_levenshtein_distance(word, key)
-            if dist < best_dist:
-                best_dist = dist
-                best_key = key
-
-        if best_key is not None and best_dist <= self.max_edit_distance:
-            formal = self.mappings[best_key]
-            confidence = max(0.0, 1.0 - (best_dist * 0.3))
-            return formal, confidence
-
-        return None
+        """Compatibility API returning suggestions with source offsets."""
+        _normalized_text, changes = self.normalize_text(text)
+        return changes
 
 
-# ─── Module-level singleton ─────────────────────────────────────────
-_normalizer: Optional[FilNormalizer] = None
+# Older imports may still use this class name.
+FilNormalizer = FilipinoNormalizer
+
+_normalizer: Optional[FilipinoNormalizer] = None
 
 
-def get_normalizer() -> FilNormalizer:
+def get_normalizer(
+    *,
+    rules_path: Path | str | None = None,
+    vocabulary_path: Path | str | None = None,
+    metadata_path: Path | str | None = None,
+    artifact_dir: Path | str = _ARTIFACT_DIR,
+    max_edit_distance: int | None = 2,
+) -> FilipinoNormalizer:
     global _normalizer
+    requested_paths = _resolve_artifact_paths(
+        artifact_dir,
+        rules_path,
+        vocabulary_path,
+        metadata_path,
+    )
+    requested_signature = (*requested_paths, max_edit_distance)
     if _normalizer is None:
-        _normalizer = FilNormalizer()
-        logger.info("Filipino normalizer initialized with %d mappings", len(_normalizer.mappings))
+        _normalizer = FilipinoNormalizer(
+            artifact_dir,
+            rules_path=rules_path,
+            vocabulary_path=vocabulary_path,
+            metadata_path=metadata_path,
+            max_edit_distance=max_edit_distance,
+        )
+        logger.info(
+            "Filipino n-gram normalizer initialized with %d rules and %d vocabulary entries",
+            len(_normalizer.rules),
+            len(_normalizer.vocabulary),
+        )
+    elif (
+        any(value is not None for value in (rules_path, vocabulary_path, metadata_path))
+        or Path(artifact_dir).resolve() != _ARTIFACT_DIR.resolve()
+        or max_edit_distance != 2
+    ):
+        if requested_signature != (*_normalizer._resource_signature, _normalizer.max_edit_distance):
+            raise RuntimeError("Normalizer is already loaded with different resource paths")
     return _normalizer

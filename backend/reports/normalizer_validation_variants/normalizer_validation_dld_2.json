@@ -1,0 +1,1243 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-28T11:09:40+00:00",
+  "evaluation": {
+    "split": "validation",
+    "dataset_source": "efficient-spelling-normalization-filipino-main (1).zip::efficient-spelling-normalization-filipino-main/data/test_words.csv",
+    "split_strategy": "SHA-256 rank by seed, source row number, input, and expected value; lowest ranks assigned to test",
+    "seed": 42,
+    "final_test_reserved_for_final_evaluation": true,
+    "is_final_test_evaluation": false,
+    "train_overlap_policy": "exclude exact pair and any training-source overlap",
+    "training_pair_count": 303,
+    "normalizer_configuration": {
+      "candidate_ranking": "unrestricted Damerau-Levenshtein distance",
+      "maximum_applied_correction_distance": 2
+    },
+    "raw_gold_pair_count": 100,
+    "nonoverlap_gold_pair_count": 98,
+    "evaluated_pair_count": 78,
+    "partition": {
+      "method": "SHA-256 rank by seed, source row number, input, and expected value; lowest ranks assigned to test",
+      "seed": 42,
+      "test_fraction": 0.2,
+      "source_pair_count": 98,
+      "validation_pair_count": 78,
+      "test_pair_count": 20,
+      "source_rows_sha256": "93cffaa39f405b2e404bc9b259dca7f7b2c0a0a177107d4e733db1c675710b6e",
+      "validation_rows_sha256": "58cbe74dee8e4b120ffd4f4d02b59b8b894132f09d10e539c5046337eb531f71",
+      "test_rows_sha256": "9df2b473c98f13ef8756466f304a62e6bfbc29d140eebbc0bc58e623aa07c05f",
+      "validation_source_rows": [
+        1,
+        2,
+        4,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        18,
+        19,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        52,
+        53,
+        55,
+        59,
+        61,
+        62,
+        63,
+        65,
+        66,
+        67,
+        68,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        85,
+        86,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        95,
+        96,
+        97,
+        99,
+        100
+      ],
+      "test_source_rows": [
+        3,
+        5,
+        6,
+        16,
+        17,
+        20,
+        22,
+        29,
+        32,
+        51,
+        54,
+        56,
+        58,
+        60,
+        64,
+        69,
+        84,
+        87,
+        94,
+        98
+      ]
+    },
+    "train_overlap_counts": {
+      "exact_pair": 2,
+      "source": 2,
+      "target": 39,
+      "excluded": 2
+    },
+    "excluded_train_overlap_examples": [
+      {
+        "row_number": 42,
+        "input": "mgppsko",
+        "expected": "magpapasko",
+        "reasons": [
+          "exact_train_pair",
+          "train_source"
+        ],
+        "target_overlaps_train_target": true
+      },
+      {
+        "row_number": 57,
+        "input": "nagdul0t",
+        "expected": "nagdulot",
+        "reasons": [
+          "exact_train_pair",
+          "train_source"
+        ],
+        "target_overlaps_train_target": true
+      }
+    ],
+    "target_only_overlaps_are_retained": true,
+    "metrics": {
+      "pair_count": 78,
+      "exact_match": {
+        "correct": 36,
+        "denominator": 78,
+        "rate": 0.46153846153846156
+      },
+      "normalization_needed": 77,
+      "changed_predictions": 44,
+      "correct_changes": 36,
+      "changed_word_precision": {
+        "numerator": 36,
+        "denominator": 44,
+        "rate": 0.8181818181818182
+      },
+      "changed_word_recall": {
+        "numerator": 36,
+        "denominator": 77,
+        "rate": 0.4675324675324675
+      },
+      "changed_decision_f1": 0.5950413223140496,
+      "identity_rows": 1,
+      "false_positive_changes": 1,
+      "false_positive_rate_on_identity_pairs": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "unchanged_failure_rate": {
+        "numerator": 34,
+        "denominator": 77,
+        "rate": 0.44155844155844154
+      },
+      "wrong_replacement_rate": {
+        "numerator": 7,
+        "denominator": 44,
+        "rate": 0.1590909090909091,
+        "of_normalization_needed": 0.09090909090909091
+      }
+    },
+    "valid_word_set": {
+      "source": "archive TagalogStemmerPython/validation.txt; distinct case-insensitive words",
+      "unique_word_count": 6082,
+      "train_source_overlaps_excluded": 8,
+      "evaluated_word_count": 6074,
+      "changed_valid_words": 438,
+      "false_positive_rate": {
+        "numerator": 438,
+        "denominator": 6074,
+        "rate": 0.07211063549555483
+      },
+      "excluded_examples": [
+        "sabagay",
+        "sainyo",
+        "kana",
+        "hwag",
+        "pede",
+        "kaba",
+        "yan",
+        "nyan"
+      ],
+      "training_overlap_counts": {
+        "train_source": 8,
+        "train_target": 97
+      }
+    },
+    "error_category_counts": {
+      "expected_candidate_filtered_out": 10,
+      "expected_candidate_not_generated": 5,
+      "false_positive": 1,
+      "input_already_in_vocabulary": 2,
+      "multi_token_unsupported": 2,
+      "no_candidate": 11,
+      "normalizer_made_no_change": 10,
+      "wrong_candidate_ranking": 1
+    },
+    "incorrect_prediction_traces": [
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 17,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_not_generated",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "oo",
+            "damerau_levenshtein": 2
+          }
+        ],
+        "row_number": 1,
+        "input": "0n",
+        "expected": "on",
+        "prediction": "oo"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 2,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 2,
+        "input": "2mama",
+        "expected": "tumama",
+        "prediction": "2mama"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 26,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 4,
+        "input": "ah0n",
+        "expected": "ahon",
+        "prediction": "ah0n"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 19,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": true,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "si",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "sinisi",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 7,
+        "input": "cnic",
+        "expected": "sinisi",
+        "prediction": "cnic"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 27,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "sina",
+            "damerau_levenshtein": 5
+          },
+          {
+            "candidate": "si",
+            "damerau_levenshtein": 5
+          }
+        ],
+        "row_number": 8,
+        "input": "cntro",
+        "expected": "sentro",
+        "prediction": "cntro"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 1,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 9,
+        "input": "cya",
+        "expected": "siya",
+        "prediction": "cya"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 102,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 10,
+        "input": "destructi0n",
+        "expected": "destruction",
+        "prediction": "destructi0n"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 80,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ng",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "mina",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 12,
+        "input": "engat",
+        "expected": "ingat",
+        "prediction": "engat"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 23,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [],
+        "row_number": 13,
+        "input": "ginagavi",
+        "expected": "ginagabi",
+        "prediction": "ginagavi"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 85,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "gana",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 14,
+        "input": "gnagabi",
+        "expected": "ginagabi",
+        "prediction": "gnagabi"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 2,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "multi_token_unsupported",
+        "top_candidates_by_dld": [],
+        "row_number": 19,
+        "input": "kb",
+        "expected": "ka ba",
+        "prediction": "kb"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 37,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 21,
+        "input": "kbbyan",
+        "expected": "kababayan",
+        "prediction": "kbbyan"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 14,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "kama",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ka",
+            "damerau_levenshtein": 3
+          }
+        ],
+        "row_number": 25,
+        "input": "kmsta",
+        "expected": "kamusta",
+        "prediction": "kmsta"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 64,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "mapa",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 5
+          }
+        ],
+        "row_number": 30,
+        "input": "mappnta",
+        "expected": "mapupunta",
+        "prediction": "mappnta"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 37,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "maga",
+            "damerau_levenshtein": 5
+          },
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 6
+          }
+        ],
+        "row_number": 33,
+        "input": "mgbabaha",
+        "expected": "magbabaha",
+        "prediction": "mgbabaha"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 102,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 6
+          }
+        ],
+        "row_number": 36,
+        "input": "mgkar00n",
+        "expected": "magkaroon",
+        "prediction": "mgkar00n"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 20,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "false_positive",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "maglaho",
+            "damerau_levenshtein": 1
+          },
+          {
+            "candidate": "mago",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 37,
+        "input": "mglaho",
+        "expected": "mglaho",
+        "prediction": "maglaho"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 100,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "mago",
+            "damerau_levenshtein": 8
+          },
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 8
+          }
+        ],
+        "row_number": 38,
+        "input": "mglandfall",
+        "expected": "maglandfall",
+        "prediction": "mglandfall"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 100,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 10
+          }
+        ],
+        "row_number": 40,
+        "input": "mgpakampante",
+        "expected": "magpakampante",
+        "prediction": "mgpakampante"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 20,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": true,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "makapag",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "maka",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 3
+          }
+        ],
+        "row_number": 47,
+        "input": "mkpg",
+        "expected": "makapag",
+        "prediction": "mkpg"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 17,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 52,
+        "input": "mlusaw",
+        "expected": "malusaw",
+        "prediction": "mlusaw"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 103,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "mapa",
+            "damerau_levenshtein": 7
+          },
+          {
+            "candidate": "ma",
+            "damerau_levenshtein": 8
+          },
+          {
+            "candidate": "la",
+            "damerau_levenshtein": 9
+          }
+        ],
+        "row_number": 53,
+        "input": "mppkinggan",
+        "expected": "mapapakinggan",
+        "prediction": "mppkinggan"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 107,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 55,
+        "input": "n0rthern",
+        "expected": "northern",
+        "prediction": "n0rthern"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 87,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 7
+          }
+        ],
+        "row_number": 59,
+        "input": "naka2lito",
+        "expected": "nakakalito",
+        "prediction": "naka2lito"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 11,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 61,
+        "input": "ndi",
+        "expected": "hindi",
+        "prediction": "ndi"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 104,
+        "vocabulary_survivor_count": 5,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ngayon",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "nga",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ng",
+            "damerau_levenshtein": 4
+          },
+          {
+            "candidate": "naga",
+            "damerau_levenshtein": 4
+          },
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 62,
+        "input": "ngaung",
+        "expected": "ngayong",
+        "prediction": "ngaung"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 102,
+        "vocabulary_survivor_count": 5,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_not_generated",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ngayo",
+            "damerau_levenshtein": 2
+          },
+          {
+            "candidate": "nga",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ng",
+            "damerau_levenshtein": 4
+          },
+          {
+            "candidate": "naga",
+            "damerau_levenshtein": 4
+          },
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 63,
+        "input": "ngay0n",
+        "expected": "ngayon",
+        "prediction": "ngayo"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 65,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_not_generated",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ng",
+            "damerau_levenshtein": 2
+          },
+          {
+            "candidate": "nang",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 3
+          }
+        ],
+        "row_number": 65,
+        "input": "ngyn",
+        "expected": "ngayon",
+        "prediction": "ng"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 100,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "nakaka",
+            "damerau_levenshtein": 5
+          },
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 7
+          },
+          {
+            "candidate": "anak",
+            "damerau_levenshtein": 7
+          }
+        ],
+        "row_number": 66,
+        "input": "nkakagets",
+        "expected": "nakakagets",
+        "prediction": "nkakagets"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 102,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "nakaka",
+            "damerau_levenshtein": 8
+          },
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 10
+          },
+          {
+            "candidate": "anak",
+            "damerau_levenshtein": 10
+          }
+        ],
+        "row_number": 68,
+        "input": "nkakarecover",
+        "expected": "nakakarecover",
+        "prediction": "nkakarecover"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 38,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_not_generated",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ta",
+            "damerau_levenshtein": 2
+          },
+          {
+            "candidate": "na",
+            "damerau_levenshtein": 2
+          }
+        ],
+        "row_number": 70,
+        "input": "ntn",
+        "expected": "natin",
+        "prediction": "ta"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 44,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 72,
+        "input": "pe0ple",
+        "expected": "people",
+        "prediction": "pe0ple"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 19,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "pa",
+            "damerau_levenshtein": 6
+          }
+        ],
+        "row_number": 73,
+        "input": "pguugali",
+        "expected": "paguugali",
+        "prediction": "pguugali"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 8,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 74,
+        "input": "pki",
+        "expected": "paki",
+        "prediction": "pki"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 96,
+        "vocabulary_survivor_count": 4,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": true,
+        "failure_type": "wrong_candidate_ranking",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "parin",
+            "damerau_levenshtein": 1
+          },
+          {
+            "candidate": "pari",
+            "damerau_levenshtein": 2
+          },
+          {
+            "candidate": "pa rin",
+            "damerau_levenshtein": 2
+          },
+          {
+            "candidate": "pa",
+            "damerau_levenshtein": 3
+          }
+        ],
+        "row_number": 79,
+        "input": "prin",
+        "expected": "pa rin",
+        "prediction": "parin"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 17,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 81,
+        "input": "rep0rt",
+        "expected": "report",
+        "prediction": "rep0rt"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 63,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "multi_token_unsupported",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "sa",
+            "damerau_levenshtein": 4
+          }
+        ],
+        "row_number": 82,
+        "input": "saamin",
+        "expected": "sa amin",
+        "prediction": "saamin"
+      },
+      {
+        "input_in_vocabulary": true,
+        "generated_candidate_count": 0,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "input_already_in_vocabulary",
+        "top_candidates_by_dld": [],
+        "row_number": 89,
+        "input": "sya",
+        "expected": "siya",
+        "prediction": "sya"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 93,
+        "vocabulary_survivor_count": 3,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_not_generated",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "taon",
+            "damerau_levenshtein": 2
+          },
+          {
+            "candidate": "taonang",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "ta",
+            "damerau_levenshtein": 3
+          }
+        ],
+        "row_number": 90,
+        "input": "taung",
+        "expected": "tayong",
+        "prediction": "taon"
+      },
+      {
+        "input_in_vocabulary": true,
+        "generated_candidate_count": 0,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "input_already_in_vocabulary",
+        "top_candidates_by_dld": [],
+        "row_number": 95,
+        "input": "ung",
+        "expected": "yung",
+        "prediction": "ung"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 5,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": [],
+        "row_number": 99,
+        "input": "xero",
+        "expected": "zero",
+        "prediction": "xero"
+      },
+      {
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 21,
+        "vocabulary_survivor_count": 1,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "expected_candidate_filtered_out",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "yan",
+            "damerau_levenshtein": 2
+          }
+        ],
+        "row_number": 100,
+        "input": "yng",
+        "expected": "yang",
+        "prediction": "yan"
+      }
+    ],
+    "candidate_count_summary": {
+      "inputs_measured": 78,
+      "generated": {
+        "mean": 47.91025641025641,
+        "median": 37.0,
+        "p95": 102.14999999999999,
+        "max": 108
+      },
+      "vocabulary_survivors": {
+        "mean": 2.1794871794871793,
+        "median": 2.0,
+        "p95": 5.1499999999999915,
+        "max": 7
+      }
+    },
+    "known_diagnostic_inputs_not_used_for_tuning": [
+      {
+        "input": "skul",
+        "expected_options_for_investigation_only": [
+          "school",
+          "eskuwela"
+        ],
+        "prediction": "skul",
+        "matches_any_expected_option": false,
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 14,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "normalizer_made_no_change",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "sako",
+            "damerau_levenshtein": 3
+          },
+          {
+            "candidate": "sa",
+            "damerau_levenshtein": 3
+          }
+        ]
+      },
+      {
+        "input": "kc",
+        "expected_options_for_investigation_only": [
+          "kasi"
+        ],
+        "prediction": "ka",
+        "matches_any_expected_option": false,
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 4,
+        "vocabulary_survivor_count": 2,
+        "expected_candidate_generated": true,
+        "expected_candidate_survives_vocabulary_filter": true,
+        "failure_type": "wrong_candidate_ranking",
+        "top_candidates_by_dld": [
+          {
+            "candidate": "ka",
+            "damerau_levenshtein": 1
+          },
+          {
+            "candidate": "kasi",
+            "damerau_levenshtein": 3
+          }
+        ]
+      },
+      {
+        "input": "ndi",
+        "expected_options_for_investigation_only": [
+          "hindi"
+        ],
+        "prediction": "ndi",
+        "matches_any_expected_option": false,
+        "input_in_vocabulary": false,
+        "generated_candidate_count": 11,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "no_candidate",
+        "top_candidates_by_dld": []
+      },
+      {
+        "input": "nya",
+        "expected_options_for_investigation_only": [
+          "niya"
+        ],
+        "prediction": "nya",
+        "matches_any_expected_option": false,
+        "input_in_vocabulary": true,
+        "generated_candidate_count": 0,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "input_already_in_vocabulary",
+        "top_candidates_by_dld": []
+      },
+      {
+        "input": "nalang",
+        "expected_options_for_investigation_only": [
+          "na lang"
+        ],
+        "prediction": "nalang",
+        "matches_any_expected_option": false,
+        "input_in_vocabulary": true,
+        "generated_candidate_count": 0,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "input_already_in_vocabulary",
+        "top_candidates_by_dld": []
+      },
+      {
+        "input": "nandun",
+        "expected_options_for_investigation_only": [
+          "nandoon"
+        ],
+        "prediction": "nandun",
+        "matches_any_expected_option": false,
+        "input_in_vocabulary": true,
+        "generated_candidate_count": 0,
+        "vocabulary_survivor_count": 0,
+        "expected_candidate_generated": false,
+        "expected_candidate_survives_vocabulary_filter": false,
+        "failure_type": "input_already_in_vocabulary",
+        "top_candidates_by_dld": []
+      }
+    ],
+    "sentence_diagnostic": {
+      "input": "aq ay pumunta sa skul kahapon pra kunin yung mga gamit ko pero ndi ko nakita ang teacher namin. sabi ng kaibigan ko na baka umuwi na siya kc masama raw ang pakiramdam nya. kaya nag decide ako na bumalik nalang bukas at kukunin ko nalang yung mga gamit kapag nandun na siya.",
+      "normalized_output": "ako ay pumunta sa skul kahapon para kunin yung mga gamit ko pero ndi ko nakita ang teacher namin. sabi ng kaibigan ko na baka umuwi na siya ka masama raw ang pakiramdam nya. kaya nag decide ako na bumalik nalang bukas at kukunin ko nalang yung mga gamit kapag nandun na siya.",
+      "changes": [
+        {
+          "word": "aq",
+          "suggestion": "ako",
+          "start": 0,
+          "end": 2
+        },
+        {
+          "word": "pra",
+          "suggestion": "para",
+          "start": 30,
+          "end": 33
+        },
+        {
+          "word": "kc",
+          "suggestion": "ka",
+          "start": 138,
+          "end": 140
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "scope": "direct normalizer calls only; no HTTP or GEC",
+    "artifact_loading_ms": 235.2277,
+    "cold_first_word_request_ms": 0.1024,
+    "cold_first_word_input": "0n",
+    "cold_first_word_output": "oo",
+    "cold_first_sentence_request_ms": 0.0863,
+    "cold_first_sentence_input": "0n po.",
+    "cold_first_sentence_output": "0n po.",
+    "fixed_workload": {
+      "word_count": 98,
+      "ordered_words_sha256": "a04586ab4f24195c9ac72a486a9686ac6521a6c5a07c679fe09466992f9fc328",
+      "order": "archive/input row order after exact/source training-overlap exclusion",
+      "gold_labels_passed_to_benchmark": false
+    },
+    "benchmark": null
+  },
+  "provenance": {
+    "git": {
+      "branch": "main",
+      "head": "25028df7c2a64efed8475bd1ed3af17ed1113df9"
+    },
+    "python": "3.11.5",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "source_archive": "efficient-spelling-normalization-filipino-main (1).zip",
+    "source_archive_sha256": "f001e49b9e7854925068774f0c600e1a83b9d00dc895a49377e648041e494b7c",
+    "source_members": {
+      "gold_pairs": "efficient-spelling-normalization-filipino-main/data/test_words.csv",
+      "valid_words": "efficient-spelling-normalization-filipino-main/TagalogStemmerPython/validation.txt"
+    },
+    "training_pairs_path": "C:\\Users\\Dominic\\Documents\\Filly\\backend\\normalization\\data\\train_pairs.csv",
+    "training_pairs_sha256": "81cff7de564683df7350908d78e6a408bcdefb0ec08bcc651ae553546dcee13f",
+    "normalizer_artifacts": {
+      "rules.json": "90a255b552f86a5a12d5f1651213d85e903573d3b32147a9a987adabd3f26138",
+      "vocabulary.txt": "31a2d2af1e0bff834778bffbdd297ad416ee6770056c1a992dc942b57f31b58c",
+      "metadata.json": "e2be564a5090bbc400b2b99d41b29853548c39f585d259e6e4007d96d961e8c8"
+    },
+    "random_seed": 42
+  }
+}

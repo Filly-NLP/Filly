@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "algorithm": "character n-gram rules with Damerau-Levenshtein ranking",
+  "algorithm_source": {
+    "archive": "efficient-spelling-normalization-filipino-main (1).zip",
+    "archive_sha256": "f001e49b9e7854925068774f0c600e1a83b9d00dc895a49377e648041e494b7c",
+    "implementation": "main_algo.py and utils.py (N-Grams + DLD V1)",
+    "training_pairs_member": "efficient-spelling-normalization-filipino-main/data/train_words.csv",
+    "base_vocabulary_member": "efficient-spelling-normalization-filipino-main/TagalogStemmerPython/output/with_info.txt"
+  },
+  "parameters": {
+    "min_ngram": 2,
+    "max_ngram": 2,
+    "candidate_cutoff": 100,
+    "candidate_ranking": "unrestricted Damerau-Levenshtein distance",
+    "candidate_vocabulary_filter": true
+  },
+  "training_data": {
+    "path": "backend/normalization/data/train_pairs.csv",
+    "sha256": "81cff7de564683df7350908d78e6a408bcdefb0ec08bcc651ae553546dcee13f",
+    "pair_count": 303,
+    "induced_source_ngram_count": 304,
+    "induced_replacement_count": 644,
+    "vocabulary_target_token_count": 238
+  },
+  "base_vocabulary": {
+    "path": "backend/normalization/data/base_vocabulary.txt",
+    "sha256": "8832b8c7d54c026a85af104c0f3b78af5a3345d09f7225e34d650d54d2ed809b",
+    "entry_count": 18029,
+    "provenance_license": "backend/normalization/data/LICENSE.TagalogStemmer.txt"
+  },
+  "vocabulary_count": 18077,
+  "artifacts": {
+    "rules.json": {
+      "sha256": "90a255b552f86a5a12d5f1651213d85e903573d3b32147a9a987adabd3f26138"
+    },
+    "vocabulary.txt": {
+      "sha256": "31a2d2af1e0bff834778bffbdd297ad416ee6770056c1a992dc942b57f31b58c"
+    }
+  }
+}

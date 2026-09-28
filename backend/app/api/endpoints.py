@@ -1,14 +1,20 @@
 import logging
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database.database import get_db
 from app.models.models import Document, Suggestion
 from app.schemas.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
+    TextRequest,
+    NormalizeResponse,
+    GECCorrectResponse,
+    PipelineAnalyzeResponse,
+    GrammarCorrectionItem,
     DocumentCreate,
     DocumentUpdate,
     DocumentResponse,
@@ -18,12 +24,21 @@ from app.schemas.schemas import (
     NormalizationStats,
     GrammarStats,
 )
-from app.services.normalizer import get_normalizer
-from app.services.gec import get_gec_service
+from app.services.filly_pipeline import FillyPipeline
+from app.services.gec import GECInputTooLong
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+v1_router = APIRouter()
+
+
+def get_filly_pipeline(request: Request) -> FillyPipeline:
+    """Return the startup-loaded pipeline; never initialize models per request."""
+    pipeline = getattr(request.app.state, "filly_pipeline", None)
+    if pipeline is None or not getattr(request.app.state, "filly_ready", False):
+        raise HTTPException(status_code=503, detail="FILLY services are not ready")
+    return pipeline
 
 
 # ─── Health ──────────────────────────────────────────────────────────
@@ -34,35 +49,92 @@ async def health_check():
     return {"status": "ok", "service": "FILLY"}
 
 
+@v1_router.get("/health")
+def versioned_health_check(request: Request):
+    """Report process readiness without loading any model resources."""
+    ready = bool(getattr(request.app.state, "filly_ready", False))
+    status_code = 200 if ready else 503
+    if not ready:
+        raise HTTPException(status_code=status_code, detail={"status": "not_ready", "service": "FILLY"})
+    return {
+        "status": "ok",
+        "service": "FILLY",
+        "ready": True,
+        "gec_iterations": settings.GECTOR_ITERATIONS,
+        "device": getattr(request.app.state, "filly_device", settings.DEVICE),
+    }
+
+
 # ─── Text Analysis ──────────────────────────────────────────────────
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_text(request: AnalyzeRequest):
+def analyze_text(
+    request: AnalyzeRequest,
+    pipeline: FillyPipeline = Depends(get_filly_pipeline),
+):
     """
     Analyze Filipino text for normalization suggestions and grammar errors.
     """
-    text = request.text.strip()
-    if not text:
-        return AnalyzeResponse()
-
-    logger.info("Analyzing text (%d chars)", len(text))
-
-    normalizer = get_normalizer()
-    normalizations = normalizer.normalize(text)
-
-    gec = get_gec_service()
-    grammar_corrections = gec.check(text)
-
-    logger.info(
-        "Found %d normalizations, %d grammar corrections",
-        len(normalizations),
-        len(grammar_corrections),
-    )
+    try:
+        result = pipeline.analyze(request.text)
+    except GECInputTooLong as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    grammar_corrections = []
+    # Preserve the old endpoint's input-relative offsets only where they can
+    # be proven: first-pass GEC offsets target the raw text iff normalization
+    # left it byte-for-byte unchanged. Later pass offsets are iteration-local.
+    if result.normalized_text == result.original_text and result.gec.passes:
+        grammar_corrections = [
+            GrammarCorrectionItem(
+                original=change.original,
+                correction=change.replacement,
+                start=change.start,
+                end=change.end,
+                type="grammar",
+                rule=change.tag,
+                message="",
+            )
+            for change in result.gec.passes[0].changes
+        ]
 
     return AnalyzeResponse(
-        normalizations=normalizations,
+        normalizations=result.normalization.changes,
         grammar_corrections=grammar_corrections,
     )
+
+
+@v1_router.post("/analyze", response_model=PipelineAnalyzeResponse)
+def analyze_pipeline(
+    request: TextRequest,
+    pipeline: FillyPipeline = Depends(get_filly_pipeline),
+):
+    """Run normalization followed by five dependent GEC passes."""
+    logger.info("Running FILLY pipeline (%d chars)", len(request.text))
+    try:
+        return pipeline.analyze(request.text)
+    except GECInputTooLong as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@v1_router.post("/normalize", response_model=NormalizeResponse)
+def normalize_text(
+    request: TextRequest,
+    pipeline: FillyPipeline = Depends(get_filly_pipeline),
+):
+    """Run the normalization ablation independently."""
+    return pipeline.normalize(request.text)
+
+
+@v1_router.post("/gec", response_model=GECCorrectResponse)
+def correct_grammar(
+    request: TextRequest,
+    pipeline: FillyPipeline = Depends(get_filly_pipeline),
+):
+    """Run iterative GEC directly on the submitted text."""
+    try:
+        return pipeline.gec(request.text)
+    except GECInputTooLong as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 # ─── Documents ───────────────────────────────────────────────────────
@@ -75,7 +147,12 @@ def _count_words(text: str) -> int:
     return len(stripped.split())
 
 
-def _populate_document_suggestions(db: Session, doc_id: int, content: str):
+def _populate_document_suggestions(
+    db: Session,
+    doc_id: int,
+    content: str,
+    pipeline: FillyPipeline,
+):
     """Analyze document content and save suggestions to database."""
     db.query(Suggestion).filter(Suggestion.document_id == doc_id).delete()
 
@@ -83,33 +160,19 @@ def _populate_document_suggestions(db: Session, doc_id: int, content: str):
         db.commit()
         return
 
-    normalizer = get_normalizer()
-    normalizations = normalizer.normalize(content)
-
-    gec = get_gec_service()
-    grammar_corrections = gec.check(content)
-
-    for n in normalizations:
+    result = pipeline.analyze(content)
+    for suggestion in result.suggestions:
         db_sugg = Suggestion(
             document_id=doc_id,
-            type=f"normalization:{n.category}",
-            original=n.word,
-            suggestion=n.suggestion,
-            start_pos=n.start,
-            end_pos=n.end,
-            accepted=False,
-            ignored=False,
-        )
-        db.add(db_sugg)
-
-    for g in grammar_corrections:
-        db_sugg = Suggestion(
-            document_id=doc_id,
-            type="grammar",
-            original=g.original,
-            suggestion=g.correction,
-            start_pos=g.start,
-            end_pos=g.end,
+            type=(
+                f"normalization:{next((c.category for c in result.normalization.changes if c.start == suggestion.start and c.end == suggestion.end), 'spelling_variation')}"
+                if suggestion.source == "normalization"
+                else "grammar"
+            ),
+            original=suggestion.original,
+            suggestion=suggestion.replacement,
+            start_pos=suggestion.start,
+            end_pos=suggestion.end,
             accepted=False,
             ignored=False,
         )
@@ -119,7 +182,13 @@ def _populate_document_suggestions(db: Session, doc_id: int, content: str):
 
 
 @router.post("/document", response_model=DocumentResponse)
-async def create_document(doc: DocumentCreate, db: Session = Depends(get_db)):
+# Plain synchronous endpoints run in FastAPI's worker threadpool. Document
+# creation and updates may invoke the five-pass model pipeline.
+def create_document(
+    doc: DocumentCreate,
+    db: Session = Depends(get_db),
+    pipeline: FillyPipeline = Depends(get_filly_pipeline),
+):
     """Create a new document."""
     db_doc = Document(
         title=doc.title,
@@ -130,7 +199,7 @@ async def create_document(doc: DocumentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_doc)
     
-    _populate_document_suggestions(db, db_doc.id, db_doc.content)
+    _populate_document_suggestions(db, db_doc.id, db_doc.content, pipeline)
     
     logger.info("Created document id=%d title=%s", db_doc.id, db_doc.title)
     return db_doc
@@ -146,10 +215,11 @@ async def get_document(doc_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/document/{doc_id}", response_model=DocumentResponse)
-async def update_document(
+def update_document(
     doc_id: int,
     update: DocumentUpdate,
     db: Session = Depends(get_db),
+    pipeline: FillyPipeline = Depends(get_filly_pipeline),
 ):
     """Update a document's title and/or content."""
     doc = db.query(Document).filter(Document.id == doc_id).first()
@@ -166,7 +236,7 @@ async def update_document(
     db.refresh(doc)
     
     if update.content is not None:
-        _populate_document_suggestions(db, doc.id, doc.content)
+        _populate_document_suggestions(db, doc.id, doc.content, pipeline)
 
     logger.info("Updated document id=%d", doc.id)
     return doc
@@ -211,6 +281,12 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=400,
             detail="Unsupported file type. Only .txt and .docx files are accepted.",
+        )
+
+    if len(text) > settings.MAX_INPUT_LENGTH:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Extracted text exceeds the {settings.MAX_INPUT_LENGTH}-character input limit.",
         )
 
     logger.info("Uploaded file '%s' (%d chars extracted)", file.filename, len(text))

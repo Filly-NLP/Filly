@@ -2,44 +2,22 @@
    FILLY – Unified Application Logic
 ───────────────────────────────────────────── */
 
+import { analyzeText } from './api/fillyApi.js'
+import {
+  applyAcceptedSuggestionsSafely,
+  normalizeSuggestions,
+  segmentText,
+} from './suggestions.js'
+
 // ══════════════════════════════════════════════
 // DATA
 // ══════════════════════════════════════════════
-const NORM = {
-  'aq':{to:'ako',type:'norm',label:'Abbreviation'},'nsa':{to:'nasa',type:'norm',label:'Abbreviation'},
-  'bah8':{to:'bahay',type:'norm',label:'Leet speak'},'kse':{to:'kasi',type:'norm',label:'Abbreviation'},
-  'kc':{to:'kasi',type:'norm',label:'Abbreviation'},'knina':{to:'kanina',type:'norm',label:'Abbreviation'},
-  'tpos':{to:'pagkatapos',type:'norm',label:'Abbreviation'},'w/':{to:'kasama ng',type:'norm',label:'Symbol'},
-  'dba':{to:'diba',type:'norm',label:'Abbreviation'},'nlang':{to:'na lang',type:'norm',label:'Contraction'},
-  'nlng':{to:'na lang',type:'norm',label:'Contraction'},'ngaun':{to:'ngayon',type:'norm',label:'Abbreviation'},
-  'ung':{to:'yung',type:'norm',label:'Abbreviation'},'cno':{to:'sino',type:'norm',label:'Abbreviation'},
-  'cnu':{to:'sino',type:'norm',label:'Abbreviation'},'xa':{to:'siya',type:'norm',label:'Abbreviation'},
-  'cya':{to:'siya',type:'norm',label:'Abbreviation'},'sya':{to:'siya',type:'norm',label:'Abbreviation'},
-  'poh':{to:'po',type:'norm',label:'Colloquial'},'nman':{to:'naman',type:'norm',label:'Abbreviation'},
-  'nmn':{to:'naman',type:'norm',label:'Abbreviation'},'dn':{to:'rin',type:'norm',label:'Abbreviation'},
-  'pra':{to:'para',type:'norm',label:'Abbreviation'},'pro':{to:'pero',type:'norm',label:'Abbreviation'},
-  'pru':{to:'pero',type:'norm',label:'Abbreviation'},'dpat':{to:'dapat',type:'norm',label:'Abbreviation'},
-  'lhat':{to:'lahat',type:'norm',label:'Abbreviation'},'hnd':{to:'hindi',type:'norm',label:'Abbreviation'},
-  'hndi':{to:'hindi',type:'norm',label:'Abbreviation'},'wla':{to:'wala',type:'norm',label:'Abbreviation'},
-  'bkit':{to:'bakit',type:'norm',label:'Abbreviation'},'bkt':{to:'bakit',type:'norm',label:'Abbreviation'},
-  'gsto':{to:'gusto',type:'norm',label:'Abbreviation'},'mgkita':{to:'magkita',type:'norm',label:'Abbreviation'},
-  'tyo':{to:'tayo',type:'norm',label:'Abbreviation'},'tyu':{to:'tayo',type:'norm',label:'Abbreviation'},
-  'yun':{to:'iyon',type:'gram',label:'Grammar'},'ganun':{to:'ganoon',type:'gram',label:'Grammar'},
-  'ndi':{to:'hindi',type:'norm',label:'Abbreviation'},'na2':{to:'na rin',type:'norm',label:'Number sub'},
-  'din':{to:'rin',type:'gram',label:'Grammar'},'sna':{to:'sana',type:'norm',label:'Abbreviation'},
-  'cge':{to:'sige',type:'norm',label:'Abbreviation'},'cgeh':{to:'sige',type:'norm',label:'Abbreviation'},
-  'tska':{to:'tsaka',type:'norm',label:'Abbreviation'},'tlga':{to:'talaga',type:'norm',label:'Abbreviation'},
-  'talga':{to:'talaga',type:'norm',label:'Abbreviation'},'nyo':{to:'ninyo',type:'gram',label:'Grammar'},
-  'ntin':{to:'natin',type:'norm',label:'Abbreviation'},'ksma':{to:'kasama',type:'norm',label:'Abbreviation'},
-  'mhal':{to:'mahal',type:'norm',label:'Abbreviation'},'lbas':{to:'labas',type:'norm',label:'Abbreviation'},
-};
-
 // Analytics state
 const ANALYTICS = {
   unnormalizedWords: 0,
   grammarFound: 0,
-  grammarFixed: 0,
-  grammarIgnored: 0
+  acceptedSuggestions: 0,
+  ignoredSuggestions: 0
 };
 
 // ══════════════════════════════════════════════
@@ -172,7 +150,12 @@ const WORD_LIMIT = 250;
 window.segments = [];
 window.suggestions = {};
 window.isProgrammaticEdit = false;
+window.analysisResult = null;
 let activeTooltip = null;
+let currentAnalysisText = null;
+let analysisRequestId = 0;
+let activeSuggestionId = null;
+let reanalysisTimer = null;
 
 function initWrite() {
   const ta = document.getElementById('editorTextarea');
@@ -207,42 +190,26 @@ function initWrite() {
   };
 
   ta.addEventListener('input', () => {
-    // If the edit is not programmatic (i.e. user typed manually)
     if (!window.isProgrammaticEdit) {
-      // Clear current recommendations
-      window.segments = [];
-      window.suggestions = {};
-      removeActiveTooltip();
-      
-      // Reset recommendations UI
-      const body = document.getElementById('recsBody');
-      if (body) {
-        body.innerHTML = `<div class="recs-empty"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><p>No suggestions yet.</p><span>Start typing or paste text to see recommendations.</span></div>`;
+      const checkButton = document.getElementById('checkBtn');
+      const reanalyze = currentAnalysisText !== null || reanalysisTimer !== null || checkButton.disabled;
+      invalidateAnalysis();
+      if (reanalyze) {
+        reanalysisTimer = setTimeout(() => {
+          reanalysisTimer = null;
+          if (ta.value.trim()) processText();
+        }, 650);
       }
-      const recsCount = document.getElementById('recsCount');
-      if (recsCount) recsCount.textContent = 'Suggestions (0)';
-      
-      const bulkActions = document.querySelector('.recs-bulk-actions');
-      if (bulkActions) bulkActions.style.display = 'none';
-
-      // Clear output display
-      const out = document.getElementById('outputDisplay');
-      if (out) {
-        out.innerHTML = `<div class="output-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><p>Corrected text will appear here</p><span>Click "Check Text" to process</span></div>`;
-      }
-      const outChars = document.getElementById('outputChars');
-      if (outChars) outChars.innerHTML = '&nbsp;';
     }
     updateStats();
   });
-
   document.getElementById('checkBtn').addEventListener('click', processText);
 document.getElementById('copyBtn').addEventListener('click', () => {
     const text = getOutputPlainText();
-    if(!text){showToast('There is no corrected text to copy.');return;}
+    if(!text){showToast('There is no analyzed text to copy.');return;}
     if(text){ navigator.clipboard.writeText(text).then(()=>{      const b=document.getElementById('copyBtn');
-      b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
-      setTimeout(()=>{b.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';},2000);
+      b.textContent='Copied!';
+      setTimeout(()=>{b.textContent='Copy accepted text';},2000);
     });}
   });
   
@@ -255,6 +222,7 @@ document.getElementById('copyBtn').addEventListener('click', () => {
         window.isProgrammaticEdit = true;
         ta.value = limitWords(ev.target.result);
         window.isProgrammaticEdit = false;
+        invalidateAnalysis();
         updateStats();
       }; r.readAsText(f);
     };
@@ -303,7 +271,7 @@ function limitWords(text){
 
 function downloadCorrectedOutput(){
   const text=getOutputPlainText();
-if(!text){showToast('There is no corrected text to save.');return;}  const rawTitle=document.getElementById('docTitle').value.trim() || 'Untitled';
+if(!text){showToast('There is no analyzed text to save.');return;}  const rawTitle=document.getElementById('docTitle').value.trim() || 'Untitled';
   const filename=rawTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g,'').trim() || 'Untitled';
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -314,333 +282,395 @@ if(!text){showToast('There is no corrected text to save.');return;}  const rawTi
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  showToast('Corrected output downloaded.');
+  showToast('Accepted text downloaded.');
 }
 
-function segmentText(text, suggestionsList) {
-  // Sort suggestions ascending by start to partition
-  const sorted = [];
-  suggestionsList.forEach(s => {
-    if (!sorted.some(x => (s.start < x.end && s.end > x.start))) {
-      sorted.push(s);
-    }
-  });
-  sorted.sort((a, b) => a.start - b.start);
+function invalidateAnalysis() {
+  analysisRequestId += 1;
+  clearTimeout(reanalysisTimer);
+  reanalysisTimer = null;
+  currentAnalysisText = null;
+  activeSuggestionId = null;
+  window.segments = [];
+  window.suggestions = {};
+  window.analysisResult = null;
+  removeActiveTooltip();
+  setAnalyzeLoading(false);
+  clearEditorHighlights();
+  renderOutputPlaceholder();
 
-  const segments = [];
-  let lastIdx = 0;
-  sorted.forEach(s => {
-    if (s.start > lastIdx) {
-      segments.push({
-        text: text.slice(lastIdx, s.start),
-        sugId: null
-      });
-    }
-    segments.push({
-      text: text.slice(s.start, s.end),
-      sugId: s.id
-    });
-    lastIdx = s.end;
+  const body = document.getElementById('recsBody');
+  if (body) body.innerHTML = '<div class="recs-empty"><p>No current suggestions.</p><span>Analyze the edited text to check it again.</span></div>';
+  const count = document.getElementById('recsCount');
+  if (count) count.textContent = 'Suggestions (0)';
+  const bulkActions = document.querySelector('.recs-bulk-actions');
+  if (bulkActions) bulkActions.style.display = 'none';
+}
+
+function clearEditorHighlights() {
+  const editor = document.getElementById('editorTextarea');
+  editor.querySelectorAll('.original-highlight').forEach((highlight) => {
+    const parent = highlight.parentNode;
+    while (highlight.firstChild) parent.insertBefore(highlight.firstChild, highlight);
+    parent.removeChild(highlight);
   });
-  if (lastIdx < text.length) {
-    segments.push({
-      text: text.slice(lastIdx),
-      sugId: null
-    });
-  }
-  return segments;
+}
+
+function setAnalyzeLoading(loading) {
+  const button = document.getElementById('checkBtn');
+  if (!button) return;
+  if (!button.dataset.defaultMarkup) button.dataset.defaultMarkup = button.innerHTML;
+  button.disabled = loading;
+  button.setAttribute('aria-busy', String(loading));
+  button.innerHTML = loading
+    ? '<span class="spinner spinner-small" aria-hidden="true"></span> Analyzing…'
+    : button.dataset.defaultMarkup;
+}
+
+function renderOutputPlaceholder() {
+  const out = document.getElementById('outputDisplay');
+  if (!out) return;
+  out.innerHTML = '<div class="output-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><p>Corrected text will appear here</p><span>Click "Check Text" to process</span></div>';
+  const chars = document.getElementById('outputChars');
+  if (chars) chars.innerHTML = '&nbsp;';
+}
+
+function showAnalysisError(error) {
+  const message = error && error.message ? error.message : 'Could not connect to the FILLY service.';
+  document.getElementById('outputDisplay').innerHTML =
+    '<div class="api-error" role="alert"><strong>Analysis failed</strong><p>' + escH(message) + '</p></div>';
+  document.getElementById('recsBody').innerHTML =
+    '<div class="recs-empty api-error" role="alert"><p>' + escH(message) + '</p></div>';
+  document.getElementById('recsCount').textContent = 'Suggestions (error)';
+  document.getElementById('outputChars').innerHTML = '&nbsp;';
+  const bulkActions = document.querySelector('.recs-bulk-actions');
+  if (bulkActions) bulkActions.style.display = 'none';
 }
 
 function processApiResponse(text, data) {
-  const normalizations = data.normalizations || [];
-  const grammarCorrections = data.grammar_corrections || [];
-  
-  const suggestions = {};
-  let sugIdx = 0;
+  if (!data || data.original_text !== text) {
+    throw new Error('The analysis result does not match the current editor text. Please analyze again.');
+  }
+  if (typeof data.normalized_text !== 'string' || typeof data.corrected_text !== 'string') {
+    throw new Error('The analysis response is missing normalized or corrected text.');
+  }
 
-  normalizations.forEach(n => {
-    const id = `sug-${sugIdx++}`;
-    suggestions[id] = {
-      id,
-      start: n.start,
-      end: n.end,
-      from: n.word,
-      to: n.suggestion,
-      type: 'norm',
-      label: '', // when you are recommending a changes for normalization, do not add abbreviations, slangs, spelling variations next to the normalization tag
-      status: 'pending'
-    };
-  });
-
-  grammarCorrections.forEach(g => {
-    const id = `sug-${sugIdx++}`;
-    suggestions[id] = {
-      id,
-      start: g.start,
-      end: g.end,
-      from: g.original,
-      to: g.correction,
-      type: 'gram',
-      label: g.rule ? g.rule.charAt(0).toUpperCase() + g.rule.slice(1) : 'Grammar',
-      status: 'pending'
-    };
-  });
-
-  const list = Object.values(suggestions);
-  const segments = segmentText(text, list);
-
-  return { segments, suggestions };
+  const list = normalizeSuggestions(text, data.suggestions);
+  const suggestions = Object.fromEntries(list.map((suggestion) => [suggestion.id, suggestion]));
+  return {
+    segments: segmentText(text, list),
+    suggestions,
+    result: {
+      original_text: data.original_text,
+      normalized_text: data.normalized_text,
+      corrected_text: data.corrected_text,
+      normalization: data.normalization || { changes: [] },
+      gec: data.gec || { iterations: 0, changes: [], iteration_outputs: [] },
+    },
+  };
 }
 
-function processText(){
-  const ta=document.getElementById('editorTextarea'), text=ta.value.trim();
-  if(!text){showToast('Please enter some text to check.');ta.focus();return;}
-  const out=document.getElementById('outputDisplay');
-  out.innerHTML='<div class="processing-state"><div class="spinner"></div><span style="color:var(--text-3);font-size:0.9rem;">Processing…</span></div>';
-  document.getElementById('suggestionsBar') && (document.getElementById('suggestionsBar').style.display='none');
-  
-  // Clear recs and hide bulk container
-  document.getElementById('recsBody').innerHTML='<div class="recs-empty"><div class="spinner"></div><p style="margin-top:12px;font-size:0.85rem;color:var(--text-3);">Analyzing…</p></div>';
-  document.getElementById('recsCount').textContent='Suggestions (…)';
+async function processText() {
+  const editor = document.getElementById('editorTextarea');
+  const text = editor.value;
+  clearTimeout(reanalysisTimer);
+  reanalysisTimer = null;
+  if (!text.trim()) {
+    showToast('Please enter some text to check.');
+    editor.focus();
+    return;
+  }
+
+  const requestId = ++analysisRequestId;
+  currentAnalysisText = null;
+  window.segments = [];
+  window.suggestions = {};
+  window.analysisResult = null;
+  activeSuggestionId = null;
+  removeActiveTooltip();
+  clearEditorHighlights();
+  setAnalyzeLoading(true);
+  document.getElementById('outputDisplay').innerHTML =
+    '<div class="processing-state"><div class="spinner"></div><span>Analyzing your Filipino text…</span></div>';
+  document.getElementById('recsBody').innerHTML =
+    '<div class="recs-empty"><div class="spinner"></div><p>Analyzing…</p></div>';
+  document.getElementById('recsCount').textContent = 'Suggestions (…)';
   const bulkActions = document.querySelector('.recs-bulk-actions');
   if (bulkActions) bulkActions.style.display = 'none';
 
-  fetch('/api/analyze', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  })
-  .then(res => {
-    if (!res.ok) throw new Error('API request failed');
-    return res.json();
-  })
-  .then(data => {
-    const { segments, suggestions } = processApiResponse(text, data);
-    window.segments = segments;
-    window.suggestions = suggestions;
+  try {
+    const data = await analyzeText(text);
+    if (requestId !== analysisRequestId || editor.value !== text) return;
 
-    // Track analytics
-    trackAnalytics(Object.values(suggestions));
-
-    // Render everything
-    window.isProgrammaticEdit = true;
+    const analysis = processApiResponse(text, data);
+    currentAnalysisText = text;
+    window.segments = analysis.segments;
+    window.suggestions = analysis.suggestions;
+    window.analysisResult = analysis.result;
+    trackAnalytics(Object.values(analysis.suggestions));
     reRenderAll();
-    window.isProgrammaticEdit = false;
-  })
-  .catch(err => {
-    console.error(err);
-    out.innerHTML='<div style="color:red;font-size:0.9rem;padding:20px;text-align:center;">Failed to connect to backend server.</div>';
-    document.getElementById('recsBody').innerHTML='<div class="recs-empty"><p style="color:red;">Error loading suggestions.</p></div>';
-  });
+  } catch (error) {
+    if (requestId !== analysisRequestId || editor.value !== text) return;
+    showAnalysisError(error);
+  } finally {
+    if (requestId === analysisRequestId) setAnalyzeLoading(false);
+  }
 }
-
 function reRenderAll() {
   renderEditor();
   renderOutputDisplay();
   renderRecs();
 }
 
-function renderEditor() {
-  const ta = document.getElementById('editorTextarea');
-  if (!window.segments || window.segments.length === 0) return;
-
-  let htmlParts = [];
-  window.segments.forEach(seg => {
-    if (!seg.sugId) {
-      htmlParts.push(escH(seg.text));
-    } else {
-      const sug = window.suggestions[seg.sugId];
-      if (sug.status === 'pending') {
-        const className = sug.type === 'norm' ? 'underline-norm' : 'underline-gram';
-        htmlParts.push(`<span class="original-highlight ${className}" data-sug-id="${sug.id}">${escH(seg.text)}</span>`);
-      } else {
-        htmlParts.push(escH(sug.from));
-      }
-    }
-  });
-
-  ta.innerHTML = htmlParts.join('');
-  attachEditorListeners();
+function suggestionKind(suggestion) {
+  if (suggestion.type === 'norm') return 'Normalization';
+  if (suggestion.type === 'combined') return 'Combined correction';
+  return 'Grammar';
 }
 
-function renderOutputDisplay() {
-  const out = document.getElementById('outputDisplay');
-  if (!window.segments || window.segments.length === 0) return;
+function suggestionClass(suggestion) {
+  if (suggestion.type === 'norm') return 'norm';
+  if (suggestion.type === 'combined') return 'combined';
+  return 'gram';
+}
 
-  let htmlParts = [];
-  window.segments.forEach(seg => {
-    if (!seg.sugId) {
-      htmlParts.push(escH(seg.text));
+function renderEditor() {
+  const editor = document.getElementById('editorTextarea');
+  if (currentAnalysisText === null) {
+    const plainText = editor.value;
+    editor.textContent = plainText;
+    return;
+  }
+
+  const htmlParts = [];
+  window.segments.forEach((segment) => {
+    if (!segment.suggestionId) {
+      htmlParts.push(escH(segment.text));
+      return;
+    }
+
+    const suggestion = window.suggestions[segment.suggestionId];
+    if (!suggestion || suggestion.status !== 'pending') {
+      htmlParts.push(escH(segment.text));
+      return;
+    }
+
+    const className = 'underline-' + suggestionClass(suggestion);
+    if (segment.insertion) {
+      htmlParts.push('<span class="original-highlight insertion-marker ' + className
+        + '" data-sug-id="' + escH(suggestion.id) + '" aria-label="Suggested insertion"></span>');
     } else {
-      const sug = window.suggestions[seg.sugId];
-      if (sug.status === 'pending') {
-        htmlParts.push(`<mark class="output-highlight mark-${sug.type}" data-sug-id="${sug.id}">${escH(sug.to)}</mark>`);
-      } else if (sug.status === 'accepted') {
-        htmlParts.push(escH(sug.to));
-      } else {
-        htmlParts.push(escH(sug.from));
-      }
+      htmlParts.push('<span class="original-highlight ' + className
+        + '" data-sug-id="' + escH(suggestion.id) + '">' + escH(segment.text) + '</span>');
     }
   });
 
-  let html = htmlParts.join('');
-  html = capitalizeHtmlFirstLetter(html);
-
-  const plainText = getOutputPlainText();
-  if (plainText.length > 0 && !/[.!?]$/.test(plainText.trim())) {
-    html = html.trimEnd() + '.';
+  editor.innerHTML = htmlParts.join('');
+  attachEditorListeners();
+}
+function renderOutputDisplay() {
+  const out = document.getElementById('outputDisplay');
+  const result = window.analysisResult;
+  if (!result) {
+    renderOutputPlaceholder();
+    return;
   }
 
-  out.innerHTML = `<div class="output-text">${html}</div>`;
-  document.getElementById('outputChars').textContent = `${plainText.length} characters`;
+  const normalized = escH(result.normalized_text);
+  const corrected = escH(result.corrected_text);
+  out.innerHTML = '<section class="result-stage normalization-stage">'
+    + '<h4>After normalization</h4><div class="output-text">' + normalized + '</div></section>'
+    + '<section class="result-stage grammar-stage">'
+    + '<h4>Correction preview (includes pending suggestions)</h4><div class="output-text">' + corrected + '</div></section>';
+  document.getElementById('outputChars').textContent =
+    Array.from(result.corrected_text).length + ' characters';
 }
 
 function getOutputPlainText() {
-  let parts = [];
-  window.segments.forEach(seg => {
-    if (!seg.sugId) {
-      parts.push(seg.text);
-    } else {
-      const sug = window.suggestions[seg.sugId];
-      if (sug.status === 'pending' || sug.status === 'accepted') {
-        parts.push(sug.to);
-      } else {
-        parts.push(sug.from);
-      }
-    }
-  });
-  let text = parts.join('');
-  if (text.length > 0) text = text.charAt(0).toUpperCase() + text.slice(1);
-  if (text.length > 0 && !/[.!?]$/.test(text.trim())) text = text.trimEnd() + '.';
-  return text;
+  const editor = document.getElementById('editorTextarea');
+  return window.analysisResult && currentAnalysisText === editor.value ? editor.value : '';
 }
-
-function capitalizeHtmlFirstLetter(html) {
-  let inTag = false;
-  for (let i = 0; i < html.length; i++) {
-    if (html[i] === '<') {
-      inTag = true;
-    } else if (html[i] === '>') {
-      inTag = false;
-    } else if (!inTag) {
-      return html.slice(0, i) + html[i].toUpperCase() + html.slice(i + 1);
-    }
-  }
-  return html;
-}
-
 function renderRecs() {
   const body = document.getElementById('recsBody');
-  const sugs = Object.values(window.suggestions).filter(s => s.status === 'pending');
-
+  const suggestions = Object.values(window.suggestions);
+  const pending = suggestions.filter((suggestion) => suggestion.status === 'pending');
   const bulkActions = document.querySelector('.recs-bulk-actions');
-  if (bulkActions) {
-    bulkActions.style.display = sugs.length > 0 ? 'flex' : 'none';
-  }
+  if (bulkActions) bulkActions.style.display = pending.length > 0 ? 'flex' : 'none';
+  document.getElementById('recsCount').textContent = 'Suggestions (' + pending.length + ')';
 
-  document.getElementById('recsCount').textContent = `Suggestions (${sugs.length})`;
-
-  if (sugs.length === 0) {
-    body.innerHTML = `<div class="recs-empty"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="16 9 10.5 14.5 8 12"/></svg><p>All resolved!</p><span>Your text has been improved.</span></div>`;
+  if (pending.length === 0) {
+    body.innerHTML = '<div class="recs-empty"><p>No pending suggestions.</p>'
+      + '<span>The backend returned ' + suggestions.length + ' correction(s).</span></div>';
     return;
   }
 
   body.innerHTML = '';
-  sugs.forEach((s, i) => {
-    const card = document.createElement('div');
-    card.className = 'sug-card';
-    card.style.animationDelay = `${i * 0.06}s`;
-    card.innerHTML = `
-      <div class="sug-header">
-        <span class="sug-tag ${s.type === 'norm' ? 'tag-norm' : 'tag-gram'}">${s.type === 'norm' ? 'Normalization' : 'Grammar'}</span>
-        ${s.label ? `<span class="sug-label">${escH(s.label)}</span>` : ''}
-      </div>
-      <div class="sug-from">${escH(s.from)}</div>
-      <div class="sug-to">→ ${escH(s.to)}</div>
-      <div class="sug-actions">
-        <button class="sug-btn sug-accept" data-id="${s.id}">Accept</button>
-        <button class="sug-btn sug-ignore" data-id="${s.id}">Ignore</button>
-      </div>`;
+  pending.forEach((suggestion, index) => {
+    const card = document.createElement('article');
+    card.className = 'sug-card' + (suggestion.id === activeSuggestionId ? ' selected' : '');
+    card.dataset.sugId = suggestion.id;
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', suggestionKind(suggestion)
+      + ' suggestion: ' + suggestion.original + ' to ' + suggestion.replacement);
+    card.style.animationDelay = (index * 0.06) + 's';
+    const kind = suggestionKind(suggestion);
+    card.innerHTML = '<div class="sug-header"><button class="sug-select sug-tag '
+      + 'tag-' + suggestionClass(suggestion) + '" type="button">' + kind + '</button>'
+      + (suggestion.tag ? '<span class="sug-label">' + escH(suggestion.tag) + '</span>' : '')
+      + '</div><div class="sug-from">' + escH(suggestion.original) + '</div>'
+      + '<div class="sug-to">&rarr; ' + escH(suggestion.replacement) + '</div>'
+      + '<div class="sug-actions"><button class="sug-btn sug-accept" type="button">Accept</button>'
+      + '<button class="sug-btn sug-ignore" type="button">Ignore</button></div>';
     body.appendChild(card);
-  });
 
-  body.querySelectorAll('.sug-accept').forEach(b => {
-    b.addEventListener('click', () => {
-      acceptSuggestion(b.dataset.id);
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('button')) return;
+      selectSuggestion(suggestion.id);
     });
-  });
-  body.querySelectorAll('.sug-ignore').forEach(b => {
-    b.addEventListener('click', () => {
-      ignoreSuggestion(b.dataset.id);
+    card.querySelector('.sug-select').addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectSuggestion(suggestion.id);
+    });
+    card.querySelector('.sug-accept').addEventListener('click', (event) => {
+      event.stopPropagation();
+      acceptSuggestion(suggestion.id);
+    });
+    card.querySelector('.sug-ignore').addEventListener('click', (event) => {
+      event.stopPropagation();
+      ignoreSuggestion(suggestion.id);
     });
   });
 }
 
 function acceptSuggestion(id) {
-  const sug = window.suggestions[id];
-  if (!sug) return;
-  sug.status = 'accepted';
-  ANALYTICS.grammarFixed++;
+  const suggestion = window.suggestions[id];
+  if (!suggestion || suggestion.status !== 'pending') return;
+  const editor = document.getElementById('editorTextarea');
+  const suggestions = Object.values(window.suggestions);
+  const current = currentAnalysisText === editor.value;
+  suggestion.status = 'accepted';
+  const applied = current
+    ? applyAcceptedSuggestionsSafely(currentAnalysisText, suggestions)
+    : { ok: false, reason: 'The editor text changed after analysis.' };
+
+  if (!applied.ok) {
+    invalidateAnalysis();
+    showToast('The suggestion was stale. Analyze the current text again.');
+    return;
+  }
+  editor.value = applied.text;
+  ANALYTICS.acceptedSuggestions += 1;
   updateAnalytics();
-  
-  window.isProgrammaticEdit = true;
-  reRenderAll();
-  window.isProgrammaticEdit = false;
+  updateStats();
+  invalidateAnalysis();
+  if (applied.text.trim()) processText();
 }
 
 function ignoreSuggestion(id) {
-  const sug = window.suggestions[id];
-  if (!sug) return;
-  sug.status = 'ignored';
-  ANALYTICS.grammarIgnored++;
+  const suggestion = window.suggestions[id];
+  if (!suggestion || suggestion.status !== 'pending') return;
+  suggestion.status = 'ignored';
+  activeSuggestionId = null;
+  ANALYTICS.ignoredSuggestions++;
   updateAnalytics();
-  
-  window.isProgrammaticEdit = true;
   reRenderAll();
-  window.isProgrammaticEdit = false;
 }
 
 function acceptAllSuggestions() {
-  const sugs = Object.values(window.suggestions).filter(s => s.status === 'pending');
-  sugs.forEach(s => {
-    s.status = 'accepted';
-    ANALYTICS.grammarFixed++;
-  });
+  const editor = document.getElementById('editorTextarea');
+  const pending = Object.values(window.suggestions).filter((suggestion) => suggestion.status === 'pending');
+  if (pending.length === 0) return;
+  pending.forEach((suggestion) => { suggestion.status = 'accepted'; });
+  const applied = currentAnalysisText === editor.value
+    ? applyAcceptedSuggestionsSafely(currentAnalysisText, Object.values(window.suggestions))
+    : { ok: false, reason: 'The editor text changed after analysis.' };
+
+  if (!applied.ok) {
+    invalidateAnalysis();
+    showToast('Suggestions were stale. Analyze the current text again.');
+    return;
+  }
+  editor.value = applied.text;
+  ANALYTICS.acceptedSuggestions += pending.length;
   updateAnalytics();
-  
-  window.isProgrammaticEdit = true;
-  reRenderAll();
-  window.isProgrammaticEdit = false;
+  updateStats();
+  invalidateAnalysis();
+  if (applied.text.trim()) processText();
 }
 
 function ignoreAllSuggestions() {
-  const sugs = Object.values(window.suggestions).filter(s => s.status === 'pending');
-  sugs.forEach(s => {
-    s.status = 'ignored';
-    ANALYTICS.grammarIgnored++;
-  });
+  const pending = Object.values(window.suggestions).filter((suggestion) => suggestion.status === 'pending');
+  pending.forEach((suggestion) => { suggestion.status = 'ignored'; });
+  activeSuggestionId = null;
+  ANALYTICS.ignoredSuggestions += pending.length;
   updateAnalytics();
-  
-  window.isProgrammaticEdit = true;
   reRenderAll();
-  window.isProgrammaticEdit = false;
 }
 
+function selectSuggestion(id) {
+  const suggestion = window.suggestions[id];
+  if (!suggestion || suggestion.status !== 'pending') return;
+  if (currentAnalysisText !== document.getElementById('editorTextarea').value) {
+    invalidateAnalysis();
+    showToast('The editor text changed. Analyze it again to refresh suggestions.');
+    return;
+  }
+
+  activeSuggestionId = id;
+  selectTextRange(suggestion.start, suggestion.end);
+  document.querySelectorAll('.sug-card').forEach((card) => {
+    const active = card.dataset.sugId === id;
+    card.classList.toggle('selected', active);
+    if (active) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
+
+function selectTextRange(start, end) {
+  const editor = document.getElementById('editorTextarea');
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  const locate = (offset) => {
+    let passed = 0;
+    for (const textNode of textNodes) {
+      const length = textNode.nodeValue.length;
+      if (offset <= passed + length) return { node: textNode, offset: offset - passed };
+      passed += length;
+    }
+    if (textNodes.length > 0) {
+      const last = textNodes[textNodes.length - 1];
+      return { node: last, offset: last.nodeValue.length };
+    }
+    return { node: editor, offset: editor.childNodes.length };
+  };
+
+  const startPoint = locate(start);
+  const endPoint = locate(end);
+  const range = document.createRange();
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  editor.focus({ preventScroll: true });
+}
 function showTooltipForSpan(span, sug) {
   removeActiveTooltip();
 
   const tooltip = document.createElement('div');
   tooltip.className = 'editor-tooltip';
   tooltip.innerHTML = `
-    <div class="tooltip-title">${sug.type === 'norm' ? 'Normalization' : 'Grammar'}</div>
+    <div class="tooltip-title">${suggestionKind(sug)}</div>
     <div class="tooltip-body">
-      <span class="tooltip-from">${escH(sug.from)}</span>
+      <span class="tooltip-from">${escH(sug.original)}</span>
       <span style="color:var(--text-4)">&rarr;</span>
-      <span class="tooltip-to">${escH(sug.to)}</span>
+      <span class="tooltip-to">${escH(sug.replacement)}</span>
     </div>
     <div class="tooltip-footer">
-      <button class="tooltip-btn btn-accept" data-id="${sug.id}">Accept</button>
-      <button class="tooltip-btn btn-ignore" data-id="${sug.id}">Ignore</button>
+      <button class="tooltip-btn btn-accept">Accept</button>
+      <button class="tooltip-btn btn-ignore">Ignore</button>
     </div>
   `;
 
@@ -681,6 +711,7 @@ function attachEditorListeners() {
 
     span.addEventListener('click', (e) => {
       e.stopPropagation();
+      selectSuggestion(sugId);
       showTooltipForSpan(span, sug);
     });
   });
@@ -696,39 +727,14 @@ function updateAnalytics() {
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('statUnnormalized', a.unnormalizedWords);
   setEl('statFound', a.grammarFound);
-  setEl('statFixed', a.grammarFixed);
-  setEl('statIgnored', a.grammarIgnored);
-
-  // Quality score: 100 minus total issues (minimum 0)
-  const totalIssues = a.unnormalizedWords + a.grammarFound;
-  const score = Math.max(0, 100 - totalIssues * 5);
-  setEl('qualityScore', score);
-
-  // Update ring
-  const ring = document.getElementById('qualityRing');
-  if (ring) {
-    const circ = 2 * Math.PI * 52;
-    const offset = circ - (score / 100) * circ;
-    ring.style.strokeDasharray = circ;
-    ring.style.strokeDashoffset = offset;
-  }
-
-  // Update message
-  const msgEl = document.getElementById('qualityMessage');
-  if (msgEl) {
-    if (score >= 90) msgEl.textContent = 'Excellent! Your Filipino writing is well-formed.';
-    else if (score >= 70) msgEl.textContent = 'Good writing quality. A few issues were found.';
-    else if (score >= 50) msgEl.textContent = 'Fair quality. Consider reviewing the suggestions.';
-    else msgEl.textContent = 'Needs improvement. Review and accept the suggestions.';
-  }
+  setEl('statAccepted', a.acceptedSuggestions);
+  setEl('statIgnored', a.ignoredSuggestions);
 }
 
 function trackAnalytics(suggestions) {
-  // Reset counts
+  // Refresh current-check suggestions; accept/ignore action totals last for this page session.
   ANALYTICS.unnormalizedWords = 0;
   ANALYTICS.grammarFound = 0;
-  ANALYTICS.grammarFixed = 0;
-  ANALYTICS.grammarIgnored = 0;
 
   suggestions.forEach(s => {
     if (s.type === 'norm') {
@@ -755,8 +761,8 @@ function escRx(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 export function initFillyApp() {
   ANALYTICS.unnormalizedWords = 0;
   ANALYTICS.grammarFound = 0;
-  ANALYTICS.grammarFixed = 0;
-  ANALYTICS.grammarIgnored = 0;
+  ANALYTICS.acceptedSuggestions = 0;
+  ANALYTICS.ignoredSuggestions = 0;
   initLanding();
   initNav();
   initWrite();

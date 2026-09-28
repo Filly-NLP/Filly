@@ -10,6 +10,8 @@ python-multipart>=0.0.18
 python-docx>=1.1.2
 aiofiles>=24.1.0
 
-# ── NLP (Milestone 3 — deferred until GECToR integration) ──
-torch>=2.0.0
-transformers>=4.40.0
+# ── Checkpoint-backed GEC inference ──
+# best.pt was trained with Transformers 5.16.1. PyTorch 2.6+ provides the
+# restricted weights-only unpickler used to read its NumPy RNG metadata safely.
+torch>=2.6.0
+transformers==5.16.1

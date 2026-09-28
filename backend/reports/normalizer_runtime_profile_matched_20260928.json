@@ -1,0 +1,321 @@
+{
+  "benchmark_configuration": {
+    "profile_words": 1000,
+    "repeats": 5,
+    "sizes": [
+      1,
+      100,
+      1000,
+      10000
+    ],
+    "warmup_passes_per_workload": 1
+  },
+  "candidate_counts": {
+    "sentence": {
+      "1": {
+        "generated_candidates_total": 4,
+        "input_tokens": 1,
+        "max_generated_candidates_for_one_word": 4,
+        "max_vocabulary_survivors_for_one_word": 0,
+        "mean_generated_candidates_per_generated_word": 4.0,
+        "mean_vocabulary_survivors_per_generated_word": 0.0,
+        "unique_words_requiring_generation": 1,
+        "vocabulary_survivors_total": 0,
+        "words_requiring_generation": 1
+      },
+      "100": {
+        "generated_candidates_total": 2352,
+        "input_tokens": 100,
+        "max_generated_candidates_for_one_word": 104,
+        "max_vocabulary_survivors_for_one_word": 6,
+        "mean_generated_candidates_per_generated_word": 28.682926829268293,
+        "mean_vocabulary_survivors_per_generated_word": 2.317073170731707,
+        "unique_words_requiring_generation": 82,
+        "vocabulary_survivors_total": 190,
+        "words_requiring_generation": 82
+      },
+      "1000": {
+        "generated_candidates_total": 32306,
+        "input_tokens": 1000,
+        "max_generated_candidates_for_one_word": 119,
+        "max_vocabulary_survivors_for_one_word": 9,
+        "mean_generated_candidates_per_generated_word": 36.6281179138322,
+        "mean_vocabulary_survivors_per_generated_word": 2.7131519274376417,
+        "unique_words_requiring_generation": 288,
+        "vocabulary_survivors_total": 2393,
+        "words_requiring_generation": 882
+      },
+      "10000": {
+        "generated_candidates_total": 323403,
+        "input_tokens": 10000,
+        "max_generated_candidates_for_one_word": 119,
+        "max_vocabulary_survivors_for_one_word": 9,
+        "mean_generated_candidates_per_generated_word": 36.73364379827351,
+        "mean_vocabulary_survivors_per_generated_word": 2.714788732394366,
+        "unique_words_requiring_generation": 288,
+        "vocabulary_survivors_total": 23901,
+        "words_requiring_generation": 8804
+      }
+    },
+    "word": {
+      "1": {
+        "generated_candidates_total": 4,
+        "input_tokens": 1,
+        "max_generated_candidates_for_one_word": 4,
+        "max_vocabulary_survivors_for_one_word": 0,
+        "mean_generated_candidates_per_generated_word": 4.0,
+        "mean_vocabulary_survivors_per_generated_word": 0.0,
+        "unique_words_requiring_generation": 1,
+        "vocabulary_survivors_total": 0,
+        "words_requiring_generation": 1
+      },
+      "100": {
+        "generated_candidates_total": 2352,
+        "input_tokens": 100,
+        "max_generated_candidates_for_one_word": 104,
+        "max_vocabulary_survivors_for_one_word": 6,
+        "mean_generated_candidates_per_generated_word": 28.682926829268293,
+        "mean_vocabulary_survivors_per_generated_word": 2.317073170731707,
+        "unique_words_requiring_generation": 82,
+        "vocabulary_survivors_total": 190,
+        "words_requiring_generation": 82
+      },
+      "1000": {
+        "generated_candidates_total": 32306,
+        "input_tokens": 1000,
+        "max_generated_candidates_for_one_word": 119,
+        "max_vocabulary_survivors_for_one_word": 9,
+        "mean_generated_candidates_per_generated_word": 36.6281179138322,
+        "mean_vocabulary_survivors_per_generated_word": 2.7131519274376417,
+        "unique_words_requiring_generation": 288,
+        "vocabulary_survivors_total": 2393,
+        "words_requiring_generation": 882
+      },
+      "10000": {
+        "generated_candidates_total": 323403,
+        "input_tokens": 10000,
+        "max_generated_candidates_for_one_word": 119,
+        "max_vocabulary_survivors_for_one_word": 9,
+        "mean_generated_candidates_per_generated_word": 36.73364379827351,
+        "mean_vocabulary_survivors_per_generated_word": 2.714788732394366,
+        "unique_words_requiring_generation": 288,
+        "vocabulary_survivors_total": 23901,
+        "words_requiring_generation": 8804
+      }
+    }
+  },
+  "measurement_scope": {
+    "first_call_definition": "one timed call before this workload's warmup; imports, artifact loading, and earlier workloads may already have warmed the process",
+    "gec_called": false,
+    "import_and_artifact_load_excluded_from_workload_timings": true,
+    "normalizer_only": true,
+    "reserved_test_accessed": false,
+    "source": "backend/normalization/data/train_pairs.csv source column only",
+    "warm_definition": "one untimed full workload pass, followed by timed repetitions"
+  },
+  "normalizer_configuration": {
+    "candidate_cutoff": 100,
+    "max_edit_distance": 2,
+    "max_ngram": 2
+  },
+  "output_fingerprints": {
+    "sentence:1": "b3e5a2ab90c815e75ca9a41ee121291d3c0c42b31ff1443e432fb318833bbdab",
+    "sentence:100": "29c319a4525db9d0e5d2b6a1cfb91124f61cdded993b1f331602421270d3a2b2",
+    "sentence:1000": "fe10fc731ea528eef584ad5e628482dd24ec9c1f48adca734ad38fe47fb3969b",
+    "sentence:10000": "890a3192ae500500c8a38499c9e4503473afee5a5eb8804fb95e7a1231810ac3",
+    "word:1": "74a9a021965cbfd97b02d0b8708e2401cdf68e4637aff95ecc0ba4babed24d6f",
+    "word:100": "fea59fbf0e699b08093b426995bca95452f559bfe58db1baac6d607ffaf67524",
+    "word:1000": "8f1da26f19427178590f33f97d8140ab23985aebfee2566d0dd5498c6d059a98",
+    "word:10000": "ed424d99fc6539d775208937a2acbe164673599465987770db6b3e3863c4e3c9"
+  },
+  "parity": null,
+  "phase": "optimized",
+  "provenance": {
+    "git_head": "25028df7c2a64efed8475bd1ed3af17ed1113df9",
+    "metadata_sha256": "e2be564a5090bbc400b2b99d41b29853548c39f585d259e6e4007d96d961e8c8",
+    "normalizer_source_sha256": "197f25d30de096443645ea75330fdaff89cb08c66bfa63faf89f0e35e3b806a1",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+    "rules_sha256": "90a255b552f86a5a12d5f1651213d85e903573d3b32147a9a987adabd3f26138",
+    "training_pairs_sha256": "81cff7de564683df7350908d78e6a408bcdefb0ec08bcc651ae553546dcee13f",
+    "vocabulary_sha256": "31a2d2af1e0bff834778bffbdd297ad416ee6770056c1a992dc942b57f31b58c",
+    "workload_word_list_sha256": "196aca4ac89827506d58446bdd7276abe607c19a3414f1693146825e9bcf083e"
+  },
+  "schema_version": 2,
+  "setup": {
+    "artifact_load_ms": 5.0697,
+    "module_import_ms": 188.0449
+  },
+  "stage_profiles": {
+    "sentence": {
+      "profiled_calls": 1,
+      "raw_function_seconds": {
+        "collect_candidates_own": 0.0036551,
+        "distance_cumulative": 0.08074350000000001,
+        "normalize_text_own": 0.009619500000000001,
+        "protected_span_helper_cumulative": 0.0004067,
+        "ranking_builtin_own": 0.0,
+        "ranking_lambda_own": 0.0,
+        "recursive_generate_own": 0.0678521,
+        "vocabulary_list_comprehension_cumulative": 0.0708238,
+        "word_letter_helper_cumulative": 0.0034690000000000003
+      },
+      "scope": "sentence workload; 1000 tokens; import and artifact load excluded",
+      "seconds_by_stage": {
+        "candidate_generation": 0.07150719999999999,
+        "damerau_levenshtein": 0.08074350000000001,
+        "ranking_overhead": 0.0,
+        "tokenization": 0.013495200000000002,
+        "vocabulary_filter": 0.0708238
+      }
+    },
+    "word": {
+      "profiled_calls": 1,
+      "raw_function_seconds": {
+        "collect_candidates_own": 0.0047752,
+        "distance_cumulative": 0.0841043,
+        "normalize_text_own": 0,
+        "protected_span_helper_cumulative": 0,
+        "ranking_builtin_own": 0.0,
+        "ranking_lambda_own": 0.0,
+        "recursive_generate_own": 0.06698760000000001,
+        "vocabulary_list_comprehension_cumulative": 0.07248890000000001,
+        "word_letter_helper_cumulative": 0
+      },
+      "scope": "word workload; 1000 tokens; import and artifact load excluded",
+      "seconds_by_stage": {
+        "candidate_generation": 0.07176280000000002,
+        "damerau_levenshtein": 0.0841043,
+        "ranking_overhead": 0.0,
+        "tokenization": 0,
+        "vocabulary_filter": 0.07248890000000001
+      }
+    }
+  },
+  "workloads": {
+    "sentence": {
+      "1": {
+        "first_call_before_workload_warmup_ms": 0.052,
+        "token_count": 1,
+        "warm_batch_ms": [
+          0.0249,
+          0.0193,
+          0.0171,
+          0.016,
+          0.0161
+        ],
+        "warm_median_ms": 0.0171,
+        "warm_p95_ms": 0.0249,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 58479.485
+      },
+      "100": {
+        "first_call_before_workload_warmup_ms": 8.5714,
+        "token_count": 100,
+        "warm_batch_ms": [
+          8.5293,
+          9.1136,
+          9.1653,
+          8.4678,
+          8.3585
+        ],
+        "warm_median_ms": 8.5293,
+        "warm_p95_ms": 9.1653,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 11724.291
+      },
+      "1000": {
+        "first_call_before_workload_warmup_ms": 114.7587,
+        "token_count": 1000,
+        "warm_batch_ms": [
+          108.5892,
+          108.8276,
+          111.887,
+          115.7295,
+          112.0186
+        ],
+        "warm_median_ms": 111.887,
+        "warm_p95_ms": 115.7295,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 8937.589
+      },
+      "10000": {
+        "first_call_before_workload_warmup_ms": 1223.8417,
+        "token_count": 10000,
+        "warm_batch_ms": [
+          1213.5442,
+          1264.274,
+          1249.984,
+          1203.54,
+          1196.6005
+        ],
+        "warm_median_ms": 1213.5442,
+        "warm_p95_ms": 1264.274,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 8240.326
+      }
+    },
+    "word": {
+      "1": {
+        "first_call_before_workload_warmup_ms": 0.0517,
+        "token_count": 1,
+        "warm_batch_ms": [
+          0.016,
+          0.0146,
+          0.0156,
+          0.0133,
+          0.0122
+        ],
+        "warm_median_ms": 0.0146,
+        "warm_p95_ms": 0.016,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 68492.902
+      },
+      "100": {
+        "first_call_before_workload_warmup_ms": 7.13,
+        "token_count": 100,
+        "warm_batch_ms": [
+          6.5007,
+          7.3088,
+          6.5953,
+          6.442,
+          7.2158
+        ],
+        "warm_median_ms": 6.5953,
+        "warm_p95_ms": 7.3088,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 15162.313
+      },
+      "1000": {
+        "first_call_before_workload_warmup_ms": 104.3732,
+        "token_count": 1000,
+        "warm_batch_ms": [
+          95.9602,
+          95.9141,
+          98.4647,
+          97.8408,
+          102.9162
+        ],
+        "warm_median_ms": 97.8408,
+        "warm_p95_ms": 102.9162,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 10220.685
+      },
+      "10000": {
+        "first_call_before_workload_warmup_ms": 986.6047,
+        "token_count": 10000,
+        "warm_batch_ms": [
+          1105.2917,
+          1079.4438,
+          1069.925,
+          1078.7025,
+          1064.2191
+        ],
+        "warm_median_ms": 1078.7025,
+        "warm_p95_ms": 1105.2917,
+        "warm_repetitions": 5,
+        "warm_tokens_per_second": 9270.397
+      }
+    }
+  }
+}

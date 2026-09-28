@@ -1,0 +1,546 @@
+{
+  "experiment": "legacy stable sorted DLD ranking vs optimized first-min DLD ranking",
+  "measurement": {
+    "output_parity_checked_for_all_validation_source_rows": true,
+    "output_parity_checked_on_every_measured_repetition": true,
+    "processes": 1,
+    "repetitions_per_workload_per_strategy": 7,
+    "run_order": "alternates every repetition; same process, code, artifacts, and inputs",
+    "validation_gold_targets_passed_to_normalizer": false,
+    "warmup_passes_per_strategy_per_workload": 1
+  },
+  "normalizer_configuration": {
+    "candidate_cutoff": 100,
+    "max_applied_damerau_levenshtein": 2,
+    "max_ngram": 2,
+    "ranking_distance": "unrestricted Damerau-Levenshtein"
+  },
+  "output_fingerprints": {
+    "validation_source_rows": {
+      "legacy_sorted": "b174233421353aa3a402554339693a71e7042eedaad35b7a9edc3a9eea91f887",
+      "optimized_first_min": "b174233421353aa3a402554339693a71e7042eedaad35b7a9edc3a9eea91f887"
+    },
+    "workloads": {
+      "legacy_sorted": {
+        "sentence:1": "9198d9f24cfd5aed99b4f726ff4af602dcf07d66653417b2654772157888c138",
+        "sentence:100": "09de5b7f1e83f472867cd474b4df0b9e071814bea593f068e3cca608be49fc56",
+        "sentence:1000": "86f9dfca979c5a45b3eba9084820fb8027e5fd7fd5556e8bdd7a3c220cf2b685",
+        "sentence:10000": "ced942c8fe8023575472c6b7ea79b94d241e09530592da1669c7c27c6339f6fb",
+        "word:1": "18e919b0a5e00ccf2c90460e2390a037b2b8e47807e2c7cdb1e25975a74ee490",
+        "word:100": "28ecc2ed565b628a91f7f471d7153199923aac2c0ffaa91e1f9fb01145ee8940",
+        "word:1000": "964ee3619e8526cadfa7ad74a3a2ecd917e4305fde04733fe56ca36e5b332035",
+        "word:10000": "c7726da1fda268a22a28f0c080ccf810bc149a031a6979e717873d90a65696c2"
+      },
+      "optimized_first_min": {
+        "sentence:1": "9198d9f24cfd5aed99b4f726ff4af602dcf07d66653417b2654772157888c138",
+        "sentence:100": "09de5b7f1e83f472867cd474b4df0b9e071814bea593f068e3cca608be49fc56",
+        "sentence:1000": "86f9dfca979c5a45b3eba9084820fb8027e5fd7fd5556e8bdd7a3c220cf2b685",
+        "sentence:10000": "ced942c8fe8023575472c6b7ea79b94d241e09530592da1669c7c27c6339f6fb",
+        "word:1": "18e919b0a5e00ccf2c90460e2390a037b2b8e47807e2c7cdb1e25975a74ee490",
+        "word:100": "28ecc2ed565b628a91f7f471d7153199923aac2c0ffaa91e1f9fb01145ee8940",
+        "word:1000": "964ee3619e8526cadfa7ad74a3a2ecd917e4305fde04733fe56ca36e5b332035",
+        "word:10000": "c7726da1fda268a22a28f0c080ccf810bc149a031a6979e717873d90a65696c2"
+      }
+    }
+  },
+  "production_ranking_decision": {
+    "basis": "lower sum of the eight matched per-workload median batch times; exact output parity is required",
+    "full_output_parity": true,
+    "legacy_sorted_aggregate_median_ms": 3427.6621,
+    "optimized_aggregate_change_percent": -2.077,
+    "optimized_first_min_aggregate_median_ms": 3356.461,
+    "scope": "these validation-split workloads and this host only; not a broad speedup claim",
+    "selected_strategy": "optimized_first_min"
+  },
+  "provenance": {
+    "archive_sha256": "f001e49b9e7854925068774f0c600e1a83b9d00dc895a49377e648041e494b7c",
+    "artifacts_sha256": {
+      "metadata.json": "e2be564a5090bbc400b2b99d41b29853548c39f585d259e6e4007d96d961e8c8",
+      "rules.json": "90a255b552f86a5a12d5f1651213d85e903573d3b32147a9a987adabd3f26138",
+      "vocabulary.txt": "31a2d2af1e0bff834778bffbdd297ad416ee6770056c1a992dc942b57f31b58c"
+    },
+    "benchmark_source_sha256": "9ba6392241e75fb38b6f6137cebe9e3a0b6b1a9d56f198d027ba46f580aeaa9a",
+    "git_head": "25028df7c2a64efed8475bd1ed3af17ed1113df9",
+    "normalizer_source_sha256": "197f25d30de096443645ea75330fdaff89cb08c66bfa63faf89f0e35e3b806a1",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+    "training_pairs_sha256": "81cff7de564683df7350908d78e6a408bcdefb0ec08bcc651ae553546dcee13f",
+    "validation_source_list_sha256": "bf88463439ecabb9ba67bf43feefab997b580b9ab4ef62b2e8bb0184dc76ca1b"
+  },
+  "schema_version": 1,
+  "validation_workload": {
+    "overlap_counts": {
+      "exact_pair": 2,
+      "excluded": 2,
+      "source": 2,
+      "target": 39
+    },
+    "reserved_test_row_count": 20,
+    "reserved_test_rows_accessed_for_partition_only": true,
+    "reserved_test_sources_passed_to_normalizer": false,
+    "split": "validation",
+    "split_seed": 42,
+    "validation_row_count": 78,
+    "validation_rows_sha256": "58cbe74dee8e4b120ffd4f4d02b59b8b894132f09d10e539c5046337eb531f71",
+    "validation_source_workload": {
+      "gold_labels_passed_to_benchmark": false,
+      "order": "archive/input row order after exact/source training-overlap exclusion",
+      "ordered_words_sha256": "bf88463439ecabb9ba67bf43feefab997b580b9ab4ef62b2e8bb0184dc76ca1b",
+      "word_count": 78
+    }
+  },
+  "workloads": {
+    "sentence": {
+      "1": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 1,
+        "legacy_sorted_median_ms": 0.003,
+        "legacy_sorted_ms": [
+          0.0091,
+          0.0032,
+          0.0033,
+          0.003,
+          0.003,
+          0.0021,
+          0.0029
+        ],
+        "optimized_change_percent": 20.0,
+        "optimized_first_min_median_ms": 0.0036,
+        "optimized_first_min_ms": [
+          0.0051,
+          0.0047,
+          0.0036,
+          0.0037,
+          0.0026,
+          0.0028,
+          0.0024
+        ],
+        "optimized_speedup": 0.83333,
+        "output_parity": true
+      },
+      "100": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 100,
+        "legacy_sorted_median_ms": 13.0345,
+        "legacy_sorted_ms": [
+          12.6565,
+          13.416,
+          12.9814,
+          13.0345,
+          12.7542,
+          13.0875,
+          13.3094
+        ],
+        "optimized_change_percent": -2.904,
+        "optimized_first_min_median_ms": 12.656,
+        "optimized_first_min_ms": [
+          12.4729,
+          12.5477,
+          12.7102,
+          13.3308,
+          12.4461,
+          12.656,
+          13.048
+        ],
+        "optimized_speedup": 1.02991,
+        "output_parity": true
+      },
+      "1000": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 1000,
+        "legacy_sorted_median_ms": 144.6037,
+        "legacy_sorted_ms": [
+          143.4935,
+          156.9145,
+          141.4308,
+          141.6732,
+          144.6037,
+          154.0331,
+          146.8828
+        ],
+        "optimized_change_percent": -2.621,
+        "optimized_first_min_median_ms": 140.8139,
+        "optimized_first_min_ms": [
+          140.8139,
+          147.1644,
+          138.1362,
+          139.7481,
+          142.5186,
+          145.0169,
+          139.3691
+        ],
+        "optimized_speedup": 1.02691,
+        "output_parity": true
+      },
+      "10000": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 10000,
+        "legacy_sorted_median_ms": 1484.3005,
+        "legacy_sorted_ms": [
+          1471.683,
+          1541.2153,
+          1468.3946,
+          1491.7029,
+          1513.4215,
+          1484.3005,
+          1473.4997
+        ],
+        "optimized_change_percent": -1.593,
+        "optimized_first_min_median_ms": 1460.6585,
+        "optimized_first_min_ms": [
+          1452.4636,
+          1519.9377,
+          1497.5908,
+          1451.7025,
+          1460.6585,
+          1424.9097,
+          1490.9825
+        ],
+        "optimized_speedup": 1.01619,
+        "output_parity": true
+      }
+    },
+    "word": {
+      "1": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 1,
+        "legacy_sorted_median_ms": 0.0327,
+        "legacy_sorted_ms": [
+          0.8388,
+          0.0331,
+          0.034,
+          0.0327,
+          0.0318,
+          0.0284,
+          0.0326
+        ],
+        "optimized_change_percent": -7.339,
+        "optimized_first_min_median_ms": 0.0303,
+        "optimized_first_min_ms": [
+          0.0365,
+          0.0333,
+          0.032,
+          0.0303,
+          0.0276,
+          0.0279,
+          0.0293
+        ],
+        "optimized_speedup": 1.07921,
+        "output_parity": true
+      },
+      "100": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 100,
+        "legacy_sorted_median_ms": 15.4153,
+        "legacy_sorted_ms": [
+          12.8732,
+          16.5508,
+          20.298,
+          13.7425,
+          16.1696,
+          13.601,
+          15.4153
+        ],
+        "optimized_change_percent": -7.375,
+        "optimized_first_min_median_ms": 14.2784,
+        "optimized_first_min_ms": [
+          13.2229,
+          13.2863,
+          28.7252,
+          14.2784,
+          14.5068,
+          14.6306,
+          13.2567
+        ],
+        "optimized_speedup": 1.07962,
+        "output_parity": true
+      },
+      "1000": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 1000,
+        "legacy_sorted_median_ms": 151.4658,
+        "legacy_sorted_ms": [
+          151.8221,
+          154.3314,
+          151.3634,
+          150.9079,
+          151.4658,
+          153.0668,
+          150.4231
+        ],
+        "optimized_change_percent": -1.86,
+        "optimized_first_min_median_ms": 148.6485,
+        "optimized_first_min_ms": [
+          148.6485,
+          145.1859,
+          145.5708,
+          157.6583,
+          166.0171,
+          157.3373,
+          148.0875
+        ],
+        "optimized_speedup": 1.01895,
+        "output_parity": true
+      },
+      "10000": {
+        "alternating_order": [
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ],
+          [
+            "optimized_first_min",
+            "legacy_sorted"
+          ],
+          [
+            "legacy_sorted",
+            "optimized_first_min"
+          ]
+        ],
+        "input_token_count": 10000,
+        "legacy_sorted_median_ms": 1618.8066,
+        "legacy_sorted_ms": [
+          1611.3134,
+          1647.1669,
+          1618.8066,
+          1625.3768,
+          1594.7193,
+          1596.8492,
+          1689.1734
+        ],
+        "optimized_change_percent": -2.436,
+        "optimized_first_min_median_ms": 1579.3718,
+        "optimized_first_min_ms": [
+          1579.2136,
+          1579.3718,
+          1603.5872,
+          1582.8551,
+          1619.3717,
+          1571.7889,
+          1570.7812
+        ],
+        "optimized_speedup": 1.02497,
+        "output_parity": true
+      }
+    }
+  }
+}
