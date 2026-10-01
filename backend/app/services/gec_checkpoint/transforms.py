@@ -9,10 +9,10 @@ Unknown abstract operations fail closed; no label is guessed as KEEP.
 from __future__ import annotations
 
 import re
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote_to_bytes
 
 from .balarila_registry import TABLE3_TARGET_TAGS
-from .tokenizer import render_tokens, tokenize_text, tokenize_with_offsets
+from .tokenizer import TokenizedText, render_tokens, tokenize_text, tokenize_with_offsets
 
 KEEP = "$KEEP"
 DELETE = "$DELETE"
@@ -55,15 +55,58 @@ def encode_concrete_label(kind: str, payload_tokens: tuple[str, ...] | list[str]
 def _decode_tokens(encoded: str, *, label: str) -> tuple[str, ...]:
     if not encoded:
         raise UnsupportedEditLabel(f"{label!r} has no concrete payload")
-    text = unquote(encoded)
+    text = _decode_url_component(encoded, label=label)
     tokens = tokenize_text(text)
     if not tokens:
         raise UnsupportedEditLabel(f"{label!r} decodes to an empty payload")
     return tokens
 
 
+def _decode_url_component(encoded: str, *, label: str) -> str:
+    if re.search(r"%(?![0-9A-Fa-f]{2})", encoded):
+        raise UnsupportedEditLabel(f"{label!r} has a malformed percent-encoded payload")
+    try:
+        return unquote_to_bytes(encoded).decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise UnsupportedEditLabel(f"{label!r} has an invalid UTF-8 payload") from exc
+
+
 def _case_capital(token: str) -> str:
     return token[:1].upper() + token[1:]
+
+
+def _replacement_gap_payload(label: str, output_tokens: tuple[str, ...]) -> tuple[str, ...] | None:
+    marker = "@gaps:"
+    if marker not in label:
+        if "@" in label:
+            raise UnsupportedEditLabel(f"{label!r} has an unknown replacement parameter")
+        return None
+    if label.count(marker) != 1:
+        raise UnsupportedEditLabel(f"{label!r} has an invalid replacement-gap payload")
+    encoded = label.split(marker, 1)[1]
+    gaps = tuple(_decode_url_component(part, label=label) for part in encoded.split(","))
+    if len(gaps) != len(output_tokens) + 1 or any(gap and not gap.isspace() for gap in gaps):
+        raise UnsupportedEditLabel(f"{label!r} has an invalid replacement-gap payload")
+    return gaps
+
+
+def _punctuation_gap_payload(label: str) -> tuple[str, str] | None:
+    marker = "@gap:"
+    if marker not in label:
+        if "@" in label:
+            raise UnsupportedEditLabel(f"{label!r} has an unknown punctuation-add parameter")
+        return None
+    if label.count(marker) != 1:
+        raise UnsupportedEditLabel(f"{label!r} has an invalid punctuation-gap payload")
+    encoded = label.split(marker, 1)[1]
+    before, separator, after = encoded.partition(",")
+    if not separator:
+        raise UnsupportedEditLabel(f"{label!r} has an invalid punctuation-gap payload")
+    gap_before = _decode_url_component(before, label=label)
+    gap_after = _decode_url_component(after, label=label)
+    if any(char and not char.isspace() for char in (gap_before, gap_after)):
+        raise UnsupportedEditLabel(f"{label!r} punctuation-gap payload is not whitespace")
+    return gap_before, gap_after
 
 
 def _is_punctuation(token: str) -> bool:
@@ -111,10 +154,9 @@ def derive_label_for_output(source_token: str, output_tokens: tuple[str, ...]) -
 
 
 def _parse_int(value: str, *, label: str) -> int:
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise UnsupportedEditLabel(f"{label!r} has an invalid integer parameter") from exc
+    if re.fullmatch(r"-?(?:0|[1-9][0-9]*)", value) is None:
+        raise UnsupportedEditLabel(f"{label!r} has an invalid integer parameter")
+    return int(value)
 
 
 def _apply_single(source_token: str, label: str) -> tuple[str, ...]:
@@ -136,6 +178,8 @@ def _apply_single(source_token: str, label: str) -> tuple[str, ...]:
             raise UnsupportedEditLabel(f"{label} requires a hyphenated source token")
         return parts
     if label.startswith("$TRANSFORM_INSERT_HYPHEN@"):
+        if label.count("@") != 1:
+            raise UnsupportedEditLabel(f"{label!r} has an invalid integer parameter")
         position = _parse_int(label.rsplit("@", 1)[1], label=label)
         if position == -1:
             return (source_token, "-")
@@ -147,11 +191,16 @@ def _apply_single(source_token: str, label: str) -> tuple[str, ...]:
         if len(output) < 2 or "".join(output) != source_token:
             raise UnsupportedEditLabel(f"{label} output must split the source token exactly")
         return output
-    if label.startswith("$MERGE_HYPHEN@0"):
-        if "-" not in source_token:
-            raise UnsupportedEditLabel(f"{label} requires an internally hyphenated token")
-        return (source_token.replace("-", ""),)
     if label.startswith("$MERGE_HYPHEN@") or label.startswith("$MERGE_SPACE@"):
+        if label.count("@") != 1:
+            raise UnsupportedEditLabel(f"{label!r} has an invalid merge parameter")
+        width = _parse_int(label.rsplit("@", 1)[1], label=label)
+        if label.startswith("$MERGE_HYPHEN@") and width == 0:
+            if "-" not in source_token:
+                raise UnsupportedEditLabel(f"{label} requires an internally hyphenated token")
+            return (source_token.replace("-", ""),)
+        if width < 2:
+            raise UnsupportedEditLabel(f"{label} has an invalid merge width")
         raise UnsupportedEditLabel(f"{label} requires neighboring source tokens")
     for tag in _VERB_TAGS:
         prefix = f"{tag}@"
@@ -161,9 +210,10 @@ def _apply_single(source_token: str, label: str) -> tuple[str, ...]:
                 raise UnsupportedEditLabel(f"{label} must encode one concrete verb surface")
             return output
     if label.startswith("$ADD_PUNC_"):
-        name = label.removeprefix("$ADD_PUNC_")
+        name = label.removeprefix("$ADD_PUNC_").split("@", 1)[0]
         if name not in _PUNCTUATION:
             raise UnsupportedEditLabel(f"unknown punctuation label {label!r}")
+        _punctuation_gap_payload(label)
         return (source_token, _PUNCTUATION[name])
     if label.startswith("$CHANGE_PUNC_"):
         name = label.removeprefix("$CHANGE_PUNC_")
@@ -171,7 +221,12 @@ def _apply_single(source_token: str, label: str) -> tuple[str, ...]:
             raise UnsupportedEditLabel(f"{label} requires a recognized punctuation token")
         return (_PUNCTUATION[name],)
     if label.startswith("$REPLACE_"):
-        return _decode_tokens(label.removeprefix("$REPLACE_"), label=label)
+        payload = label.removeprefix("$REPLACE_")
+        if "@gaps:" in payload:
+            payload = payload.split("@gaps:", 1)[0]
+        output = _decode_tokens(payload, label=label)
+        _replacement_gap_payload(label, output)
+        return output
     if label.startswith("$APPEND_"):
         suffix = _decode_tokens(label.removeprefix("$APPEND_"), label=label)
         return (source_token, *suffix)
@@ -181,6 +236,84 @@ def _apply_single(source_token: str, label: str) -> tuple[str, ...]:
 def apply_label(source_token: str, label: str) -> tuple[str, ...]:
     """Replay a label that does not require neighboring source tokens."""
     return _apply_single(source_token, label)
+
+
+def validate_label_form(label: str) -> None:
+    """Validate that a vocabulary label has a well-formed executable form.
+
+    This checks class syntax and encoded payload shape only. Preconditions
+    involving neighboring tokens or a particular source surface remain replay
+    time checks.
+    """
+    if not isinstance(label, str) or not label:
+        raise UnsupportedEditLabel("an edit label must be a non-empty string")
+    if label in {KEEP, DELETE, "$TRANSFORM_CASE_CAPITAL", "$TRANSFORM_CASE_LOWER",
+                 "$TRANSFORM_SPLIT_HYPHEN", *_FIXED_REPLACEMENTS}:
+        return
+    if label.startswith("$TRANSFORM_INSERT_HYPHEN@"):
+        if label.count("@") != 1:
+            raise UnsupportedEditLabel(f"{label!r} has an invalid integer parameter")
+        position = _parse_int(label.rsplit("@", 1)[1], label=label)
+        if position != -1 and position <= 0:
+            raise UnsupportedEditLabel(f"{label!r} has an invalid hyphen insertion position")
+        return
+    if label.startswith("$TRANSFORM_SPLIT_SPACE@"):
+        encoded = label.split("@", 1)[1]
+        if "@" in encoded:
+            raise UnsupportedEditLabel(f"{label!r} has a malformed split payload")
+        output = _decode_tokens(encoded, label=label)
+        if len(output) < 2:
+            raise UnsupportedEditLabel(f"{label!r} must encode at least two split tokens")
+        return
+    if label.startswith("$MERGE_HYPHEN@") or label.startswith("$MERGE_SPACE@"):
+        if label.count("@") != 1:
+            raise UnsupportedEditLabel(f"{label!r} has an invalid merge parameter")
+        width = _parse_int(label.rsplit("@", 1)[1], label=label)
+        if label.startswith("$MERGE_HYPHEN@"):
+            if width != 0 and width < 2:
+                raise UnsupportedEditLabel(f"{label!r} has an invalid merge width")
+        elif width < 2:
+            raise UnsupportedEditLabel(f"{label!r} has an invalid merge width")
+        return
+    if any(label.startswith(f"{tag}@") for tag in _VERB_TAGS):
+        encoded = label.split("@", 1)[1]
+        if "@" in encoded:
+            raise UnsupportedEditLabel(f"{label!r} has a malformed verb payload")
+        if len(_decode_tokens(encoded, label=label)) != 1:
+            raise UnsupportedEditLabel(f"{label!r} must encode one concrete verb surface")
+        return
+    if label.startswith("$ADD_PUNC_"):
+        name = label.removeprefix("$ADD_PUNC_").split("@", 1)[0]
+        if name not in _PUNCTUATION:
+            raise UnsupportedEditLabel(f"unknown punctuation label {label!r}")
+        _punctuation_gap_payload(label)
+        return
+    if label.startswith("$CHANGE_PUNC_"):
+        name = label.removeprefix("$CHANGE_PUNC_")
+        if name not in _PUNCTUATION:
+            raise UnsupportedEditLabel(f"unknown punctuation label {label!r}")
+        return
+    if label.startswith("$REPLACE_"):
+        payload = label.removeprefix("$REPLACE_")
+        if "@gaps:" in payload:
+            encoded, _gap_payload = payload.split("@gaps:", 1)
+            if "@" in encoded:
+                raise UnsupportedEditLabel(f"{label!r} has a malformed replacement payload")
+            payload = encoded
+        elif "@" in payload:
+            raise UnsupportedEditLabel(f"{label!r} has an unknown replacement parameter")
+        output = _decode_tokens(payload, label=label)
+        _replacement_gap_payload(label, output)
+        return
+    if label.startswith("$APPEND_"):
+        encoded = label.removeprefix("$APPEND_")
+        if "@" in encoded:
+            raise UnsupportedEditLabel(f"{label!r} has a malformed append payload")
+        _decode_tokens(encoded, label=label)
+        if label == "$APPEND_t1":
+            raise UnsupportedEditLabel("$APPEND_t1 is abstract; use a concrete encoded append label")
+        return
+    raise UnsupportedEditLabel(f"unknown or non-executable edit label {label!r}")
 
 
 def _label_segments(
@@ -197,6 +330,8 @@ def _label_segments(
         token = source_tokens[index]
         label = labels[index]
         if label.startswith("$MERGE_HYPHEN@") or label.startswith("$MERGE_SPACE@"):
+            if label.count("@") != 1:
+                raise UnsupportedEditLabel(f"{label!r} has an invalid merge parameter")
             width = _parse_int(label.rsplit("@", 1)[1], label=label)
             if width == 0 and label.startswith("$MERGE_HYPHEN@"):
                 output_tokens = _apply_single(token, label)
@@ -230,9 +365,15 @@ def _label_segments(
             and (label.startswith(("$APPEND_", "$ADD_PUNC_"))
                  or label == "$TRANSFORM_INSERT_HYPHEN@-1")
         ):
-            kind = "append"
+            kind = (
+                "append_punctuation_gap"
+                if label.startswith("$ADD_PUNC_") and _punctuation_gap_payload(label) is not None
+                else "append"
+            )
         else:
             kind = "replace"
+        if label.startswith("$REPLACE_") and _replacement_gap_payload(label, output_tokens) is not None:
+            kind = "replace_with_gaps"
         segments.append((index, index + 1, output_tokens, kind))
         index += 1
     return segments
@@ -265,13 +406,41 @@ def apply_labels_to_text(source_text: str, labels: tuple[str, ...] | list[str]) 
     gap before the next source token. A leading insertion has no correction-
     token slot in the current model and is rejected explicitly.
     """
+    _tokenized, patches = _raw_text_patches(source_text, tuple(labels))
+    result = source_text
+    for start, end, replacement, _token_start, _token_end, _label in reversed(patches):
+        result = result[:start] + replacement + result[end:]
+    return result
+
+
+def _raw_text_patches(
+    source_text: str, labels: tuple[str, ...]
+) -> tuple[TokenizedText, tuple[tuple[int, int, str, int, int, str], ...]]:
+    """Build the exact source patches used by replay and inference edit records.
+
+    Each patch carries its affected source-token range and leading classifier
+    label so callers can report the same atomic edit that replay applies.
+    """
     tokenized = tokenize_with_offsets(source_text)
     source_tokens = tokenized.tokens
-    segments = _label_segments(source_tokens, tuple(labels))
+    segments = _label_segments(source_tokens, labels)
     if not source_tokens:
-        return source_text
+        return tokenized, ()
 
-    patches: list[tuple[int, int, str]] = []
+    patches: list[tuple[int, int, str, int, int, str]] = []
+    suppressed_deletions: set[int] = set()
+
+    def extend_through_following_deletions(next_index: int) -> tuple[int, int]:
+        while next_index < len(source_tokens) and labels[next_index] == DELETE:
+            suppressed_deletions.add(next_index)
+            next_index += 1
+        end = (
+            tokenized.spans[next_index].start
+            if next_index < len(source_tokens)
+            else len(source_text)
+        )
+        return end, next_index
+
     for i1, i2, output_tokens, kind in segments:
         if kind == "keep":
             continue
@@ -286,25 +455,59 @@ def apply_labels_to_text(source_text: str, labels: tuple[str, ...] | list[str]) 
                     "appended surface cannot be separated from its source token deterministically"
                 )
             boundary_text = rendered_pair[len(rendered_left):]
-            patches.append((spans[i1].end, spans[i1].end, boundary_text))
+            patches.append((spans[i1].end, spans[i1].end, boundary_text, i1, i2, labels[i1]))
+            continue
+
+        if kind == "append_punctuation_gap":
+            gaps = _punctuation_gap_payload(labels[i1])
+            if gaps is None or len(output_tokens) != 2:
+                raise UnsupportedEditLabel("concrete punctuation-gap label has an invalid operation shape")
+            gap_before, gap_after = gaps
+            start = spans[i1].end
+            end, affected_end = extend_through_following_deletions(i2)
+            patches.append((start, end, gap_before + output_tokens[-1] + gap_after,
+                            i1, affected_end, labels[i1]))
+            continue
+
+        if kind == "replace_with_gaps":
+            if i1 != 0 or i2 != 1:
+                raise UnsupportedEditLabel("replacement-gap labels are supported only on the first token slot")
+            gaps = _replacement_gap_payload(labels[i1], output_tokens)
+            if gaps is None:
+                raise UnsupportedEditLabel("concrete replacement-gap label has no gap payload")
+            start = 0
+            end, affected_end = extend_through_following_deletions(i2)
+            replacement = "".join(
+                gaps[offset] + token for offset, token in enumerate(output_tokens)
+            ) + gaps[-1]
+            patches.append((start, end, replacement, i1, affected_end, labels[i1]))
             continue
 
         if kind == "delete":
+            if all(index in suppressed_deletions for index in range(i1, i2)):
+                continue
+            if any(index in suppressed_deletions for index in range(i1, i2)):
+                raise UnsupportedEditLabel("a raw gap edit only partially covers a deletion run")
             if i1 == 0:
                 start = spans[0].start
                 end = spans[i2].start if i2 < len(spans) else spans[i2 - 1].end
             else:
                 start = spans[i1 - 1].end
                 end = spans[i2 - 1].end
-            patches.append((start, end, ""))
+            patches.append((start, end, "", i1, i2, labels[i1]))
             continue
 
         start = spans[i1].start
         end = spans[i2 - 1].end
         replacement = render_tokens(output_tokens)
-        patches.append((start, end, replacement))
+        patches.append((start, end, replacement, i1, i2, labels[i1]))
 
-    result = source_text
-    for start, end, replacement in reversed(patches):
-        result = result[:start] + replacement + result[end:]
-    return result
+    ordered = sorted(patches, key=lambda patch: (patch[0], patch[1]))
+    for previous, current in zip(ordered, ordered[1:]):
+        if current[0] < previous[1] or (
+            previous[0] == previous[1] == current[0] == current[1]
+        ):
+            raise UnsupportedEditLabel(
+                f"overlapping raw-text edits at source spans {previous[:2]} and {current[:2]}"
+            )
+    return tokenized, tuple(ordered)

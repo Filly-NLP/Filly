@@ -1,9 +1,9 @@
 """Checkpoint-backed FILLY GEC inference.
 
-The supplied checkpoint is the custom two-head Stage-2 model from the
-Grammar-Error-Correction training repository.  This service deliberately
-fails closed when that checkpoint or its pinned tokenizer is unavailable;
-there is no rule-based or randomly initialized fallback.
+The supplied checkpoint is the custom two-head Stage-3 model from the
+Grammar-Error-Correction training repository. This service deliberately fails
+closed when that checkpoint or its pinned tokenizer is unavailable; there is
+no rule-based or randomly initialized fallback.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING, Any, Mapping
 from app.services.gec_checkpoint.tokenizer import tokenize_with_offsets
 from app.services.gec_checkpoint.transforms import (
     KEEP,
-    _label_segments,
+    _raw_text_patches,
     apply_labels_to_text,
-    render_tokens,
+    validate_label_form,
 )
 from app.services.gec_checkpoint.segmentation import (
     reassemble_sentences,
@@ -134,7 +134,8 @@ def _read_checkpoint(path: Path) -> dict[str, Any]:
             )
     except Exception as exc:
         raise GECCheckpointError(f"could not safely load GEC checkpoint {path}: {exc}") from exc
-    if not isinstance(payload, dict) or payload.get("format_version") != 1:
+    if (not isinstance(payload, dict) or type(payload.get("format_version")) is not int
+            or payload.get("format_version") != 1):
         raise GECCheckpointError("unsupported GEC checkpoint format; expected format_version=1")
     return payload
 
@@ -151,6 +152,10 @@ def _vocabulary_sha256(label_vocab: Mapping[str, int]) -> str:
 
 
 def _validate_checkpoint(payload: Mapping[str, Any]) -> tuple[dict[str, int], dict[str, Any]]:
+    if not isinstance(payload, Mapping):
+        raise GECCheckpointError("checkpoint payload is malformed")
+    if type(payload.get("format_version")) is not int or payload.get("format_version") != 1:
+        raise GECCheckpointError("unsupported GEC checkpoint format; expected format_version=1")
     config = payload.get("config")
     metadata = payload.get("metadata")
     hashes = payload.get("hashes")
@@ -158,6 +163,14 @@ def _validate_checkpoint(payload: Mapping[str, Any]) -> tuple[dict[str, int], di
     state = payload.get("model_state")
     if not all(isinstance(value, Mapping) for value in (config, metadata, hashes, vocab, state)):
         raise GECCheckpointError("checkpoint is missing config, metadata, hashes, vocabulary, or model_state")
+    if any(
+        not isinstance(name, str)
+        or not isinstance(digest, str)
+        or len(digest) != 64
+        or any(char not in "0123456789abcdef" for char in digest)
+        for name, digest in hashes.items()
+    ):
+        raise GECCheckpointError("checkpoint contains a malformed SHA-256 hash entry")
 
     if (metadata.get("selected_best") is not True
             or config.get("model_id") != MODEL_ID
@@ -165,17 +178,35 @@ def _validate_checkpoint(payload: Mapping[str, Any]) -> tuple[dict[str, int], di
             or config.get("model_revision") != MODEL_REVISION
             or metadata.get("model_revision") != MODEL_REVISION):
         raise GECCheckpointError("checkpoint is not the selected model at its pinned encoder revision")
-    if metadata.get("stage") != config.get("stage"):
+    stage = config.get("stage")
+    if (not isinstance(stage, str) or stage not in {"stage2", "stage3"}
+            or metadata.get("stage") != stage):
         raise GECCheckpointError("checkpoint stage differs between its config and metadata")
+    configured_run_id = config.get("run_id")
+    if configured_run_id is not None and configured_run_id != metadata.get("run_id"):
+        raise GECCheckpointError("checkpoint run identity differs between its config and metadata")
     if config.get("keep_label_id") != 0:
         raise GECCheckpointError("checkpoint KEEP label id differs from the inference contract")
-    if config.get("vocabulary_support_scope") != "train_only":
-        raise GECCheckpointError("checkpoint does not declare the expected train-only label vocabulary")
+    configured_scope = config.get("vocabulary_support_scope")
+    allowed_scopes = {"train_only", "train_stage2_and_stage3_union"}
+    if not isinstance(configured_scope, str) or configured_scope not in allowed_scopes:
+        raise GECCheckpointError("checkpoint declares an unknown label vocabulary support scope")
+    metadata_scope = metadata.get("vocabulary_support_scope")
+    if metadata_scope is not None and metadata_scope != configured_scope:
+        raise GECCheckpointError("checkpoint vocabulary support scope differs between config and metadata")
+    if stage == "stage3":
+        if configured_scope != "train_stage2_and_stage3_union" or metadata_scope != configured_scope:
+            raise GECCheckpointError("Stage 3 checkpoint must declare the stage2/stage3 union vocabulary scope")
 
     label_vocab = dict(vocab)
     if (not label_vocab or any(not isinstance(label, str) or type(index) is not int
                                for label, index in label_vocab.items())):
         raise GECCheckpointError("checkpoint label vocabulary is malformed")
+    try:
+        for label in label_vocab:
+            validate_label_form(label)
+    except (TypeError, ValueError) as exc:
+        raise GECCheckpointError(f"checkpoint label vocabulary contains an invalid edit class: {exc}") from exc
     indexes = sorted(label_vocab.values())
     if indexes != list(range(len(label_vocab))) or label_vocab.get(KEEP) != 0:
         raise GECCheckpointError("checkpoint label ids must be contiguous with $KEEP at id zero")
@@ -185,14 +216,71 @@ def _validate_checkpoint(payload: Mapping[str, Any]) -> tuple[dict[str, int], di
             or actual_vocab_hash != expected_vocab_hash
             or metadata.get("label_vocab_hash") != expected_vocab_hash):
         raise GECCheckpointError("checkpoint label vocabulary hash is missing or inconsistent")
-    if (not isinstance(state, Mapping)
-            or "correction_head.weight" not in state
-            or "detection_head.weight" not in state
-            or tuple(state["correction_head.weight"].shape) != (len(label_vocab), 1024)
-            or tuple(state["detection_head.weight"].shape) != (2, 1024)):
-        raise GECCheckpointError("checkpoint model heads do not match its label vocabulary and encoder")
+    source_manifest_hash = hashes.get("phase10_manifest")
+    if (not isinstance(source_manifest_hash, str)
+            or len(source_manifest_hash) != 64
+            or any(char not in "0123456789abcdef" for char in source_manifest_hash)
+            or metadata.get("source_manifest_hash") != source_manifest_hash):
+        raise GECCheckpointError("checkpoint source manifest hash is missing or inconsistent")
+    config_hashes = config.get("expected_hashes")
+    if config_hashes is not None and not isinstance(config_hashes, Mapping):
+        raise GECCheckpointError("checkpoint config hashes are malformed")
+    config_hashes = config_hashes or {}
+    if (config_hashes.get("label_vocab") not in (None, expected_vocab_hash)
+            or config_hashes.get("phase10_manifest") not in (None, source_manifest_hash)):
+        raise GECCheckpointError("checkpoint config hashes differ from its selected vocabulary or source")
 
-    reproducibility = config.get("reproducibility_metadata") or {}
+    if not isinstance(state, Mapping):
+        raise GECCheckpointError("checkpoint model_state is malformed")
+    expected_shapes = {
+        "correction_head.weight": (len(label_vocab), 1024),
+        "correction_head.bias": (len(label_vocab),),
+        "detection_head.weight": (2, 1024),
+        "detection_head.bias": (2,),
+    }
+    for name, expected_shape in expected_shapes.items():
+        value = state.get(name)
+        shape = getattr(value, "shape", None)
+        try:
+            actual_shape = tuple(int(dimension) for dimension in shape)
+        except (TypeError, ValueError):
+            actual_shape = None
+        if actual_shape != expected_shape:
+            raise GECCheckpointError("checkpoint model heads do not match its label vocabulary and encoder")
+
+    if stage == "stage3":
+        parent = metadata.get("stage3_parent")
+        parent_hash = hashes.get("stage2_parent_checkpoint")
+        required_config_hashes = {"label_vocab", "phase10_manifest", "stage2_parent_checkpoint"}
+        if not isinstance(parent, Mapping):
+            raise GECCheckpointError("Stage 3 checkpoint lacks Stage 2 parent provenance")
+        if not required_config_hashes.issubset(config_hashes):
+            raise GECCheckpointError("Stage 3 checkpoint config lacks its parent identity hashes")
+        parent_sha = parent.get("checkpoint_sha256")
+        parent_run_id = parent.get("run_id")
+        if (not isinstance(parent_sha, str) or len(parent_sha) != 64
+                or any(char not in "0123456789abcdef" for char in parent_sha)
+                or parent_sha != parent_hash
+                or not isinstance(parent_run_id, str) or not parent_run_id.strip()
+                or parent.get("model_id") != MODEL_ID
+                or parent.get("model_revision") != MODEL_REVISION
+                or parent.get("label_vocab_sha256") != expected_vocab_hash
+                or parent.get("source_manifest_sha256") != source_manifest_hash
+                or not isinstance(metadata.get("run_id"), str)
+                or not metadata.get("run_id", "").strip()):
+            raise GECCheckpointError("Stage 3 parent provenance does not match the selected checkpoint")
+        if (config_hashes["stage2_parent_checkpoint"] != parent_sha
+                or config_hashes["label_vocab"] != expected_vocab_hash
+                or config_hashes["phase10_manifest"] != source_manifest_hash):
+            raise GECCheckpointError("Stage 3 parent identity differs from the checkpoint config hashes")
+    elif metadata.get("stage3_parent") is not None or hashes.get("stage2_parent_checkpoint") is not None:
+        raise GECCheckpointError("Stage 2 checkpoint unexpectedly declares Stage 3 parent provenance")
+
+    reproducibility = config.get("reproducibility_metadata")
+    if reproducibility is None:
+        reproducibility = {}
+    elif not isinstance(reproducibility, Mapping):
+        raise GECCheckpointError("checkpoint reproducibility metadata is malformed")
     dataset_status = reproducibility.get("dataset_status", "UNKNOWN")
     research_status = reproducibility.get("research_performance_status", "UNKNOWN")
     is_provisional = dataset_status == "PROVISIONAL" or research_status == "NOT_THESIS_PERFORMANCE"
@@ -210,7 +298,7 @@ def _validate_checkpoint(payload: Mapping[str, Any]) -> tuple[dict[str, int], di
         "model_revision": metadata.get("model_revision"),
         "label_vocab_size": len(label_vocab),
         "label_vocab_sha256": expected_vocab_hash,
-        "vocabulary_support_scope": config.get("vocabulary_support_scope"),
+        "vocabulary_support_scope": configured_scope,
         "source_manifest_hash": metadata.get("source_manifest_hash"),
         "provisional_preparation_manifest_sha256": hashes.get("provisional_preparation_manifest"),
         "dataset_status": dataset_status,
@@ -355,40 +443,16 @@ def _change_records(
     *,
     iteration: int,
 ) -> tuple[GECChange, ...]:
-    tokenized = tokenize_with_offsets(text)
+    _tokenized, patches = _raw_text_patches(text, labels)
     changes: list[GECChange] = []
-    for start_token, end_token, output_tokens, kind in _label_segments(tokenized.tokens, labels):
-        if kind == "keep":
-            continue
-        spans = tokenized.spans
-        if kind == "append":
-            inserted = output_tokens[1:]
-            source_token = tokenized.tokens[start_token]
-            rendered_source = render_tokens((source_token,))
-            rendered_pair = render_tokens((source_token, *inserted))
-            if not rendered_pair.startswith(rendered_source):
-                raise ValueError("appended GEC label cannot be separated from its source token")
-            start = end = spans[start_token].end
-            replacement = rendered_pair[len(rendered_source):]
-        elif kind == "delete":
-            if start_token == 0:
-                start = spans[0].start
-                end = spans[end_token].start if end_token < len(spans) else spans[end_token - 1].end
-            else:
-                start = spans[start_token - 1].end
-                end = spans[end_token - 1].end
-            replacement = ""
-        else:
-            start = spans[start_token].start
-            end = spans[end_token - 1].end
-            replacement = render_tokens(output_tokens)
+    for start, end, replacement, start_token, end_token, label in patches:
         confidence = max(error_probabilities[start_token:end_token], default=0.0)
         changes.append(GECChange(
             original=text[start:end],
             correction=replacement,
             start=start,
             end=end,
-            label=labels[start_token],
+            label=label,
             confidence=confidence,
             iteration=iteration,
         ))
