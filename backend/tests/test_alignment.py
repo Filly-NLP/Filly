@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from app.schemas.schemas import NormalizationItem
 from app.services.alignment import compose_suggestions
 from app.services.filly_pipeline import FillyPipeline
+from app.services.normalizer import FilipinoNormalizer
 
 
 def _change(text, start, end, replacement, iteration, tag="$REPLACE"):
@@ -122,6 +123,31 @@ def test_pipeline_maps_overlapping_normalization_and_gec_edits_through_five_pass
         assert accepted_all[item.start : item.end] == item.original
         accepted_all = accepted_all[: item.start] + item.replacement + accepted_all[item.end :]
     assert accepted_all == result.corrected_text
+
+
+def test_curated_one_to_many_edit_keeps_original_span_through_following_gec_edit():
+    original = "aq naol!"
+    normalized, normalization_changes = FilipinoNormalizer().normalize_text(original)
+    assert normalized == "ako sana all!"
+
+    gec_edit = _change(normalized, 4, 12, "sana po", 1, "$REPLACE_PHRASE")
+    stage_pass = _make_pass(normalized, [gec_edit], 1)
+    suggestions = compose_suggestions(
+        original_text=original,
+        normalized_text=normalized,
+        corrected_text=stage_pass.output_text,
+        normalization_changes=normalization_changes,
+        gec_passes=[stage_pass],
+    )
+
+    assert stage_pass.output_text == "ako sana po!"
+    assert [
+        (item.start, item.end, item.original, item.replacement, item.source, item.tag)
+        for item in suggestions
+    ] == [
+        (0, 2, "aq", "ako", "normalization", "NORMALIZATION"),
+        (3, 7, "naol", "sana po", "combined", "$REPLACE_PHRASE"),
+    ]
 
 
 def test_insertions_deletions_and_length_changes_keep_original_codepoint_offsets():

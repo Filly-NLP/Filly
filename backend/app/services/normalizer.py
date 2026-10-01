@@ -32,7 +32,8 @@ def _resolve_artifact_paths(
     rules_path: Path | str | None,
     vocabulary_path: Path | str | None,
     metadata_path: Path | str | None,
-) -> tuple[Path, Path, Path]:
+    curated_mappings_path: Path | str | None,
+) -> tuple[Path, Path, Path, Path]:
     artifact_dir = Path(artifact_dir)
     rules = Path(rules_path) if rules_path is not None else artifact_dir / "rules.json"
     vocabulary = (
@@ -46,7 +47,12 @@ def _resolve_artifact_paths(
         metadata = vocabulary.parent / "metadata.json"
     else:
         metadata = artifact_dir / "metadata.json"
-    return rules.resolve(), vocabulary.resolve(), metadata.resolve()
+    curated_mappings = (
+        Path(curated_mappings_path)
+        if curated_mappings_path is not None
+        else rules.parent / "curated_mappings.json"
+    )
+    return rules.resolve(), vocabulary.resolve(), metadata.resolve(), curated_mappings.resolve()
 
 
 def damerau_levenshtein_distance(left: str, right: str) -> int:
@@ -99,13 +105,17 @@ def _is_word_letter(character: str) -> bool:
     return category.startswith("L") or category.startswith("M")
 
 
+def _curated_form_key(value: str) -> str:
+    return " ".join(value.strip().split()).casefold()
+
+
 def _protected_spans(text: str) -> list[tuple[int, int]]:
     spans = [match.span() for pattern in (_URL_RE, _EMAIL_RE) for match in pattern.finditer(text)]
     return sorted(spans)
 
 
 class FilipinoNormalizer:
-    """Load learned n-gram rules and normalize words or complete sentences."""
+    """Normalize text with curated whole-form rules and automatic N-Gram + DLD."""
 
     def __init__(
         self,
@@ -114,30 +124,46 @@ class FilipinoNormalizer:
         rules_path: Path | str | None = None,
         vocabulary_path: Path | str | None = None,
         metadata_path: Path | str | None = None,
+        curated_mappings_path: Path | str | None = None,
         max_edit_distance: int | None = 2,
+        use_curated_mappings: bool = True,
     ):
         if max_edit_distance is not None and max_edit_distance < 0:
             raise ValueError("max_edit_distance must be non-negative or None")
+        if type(use_curated_mappings) is not bool:
+            raise ValueError("use_curated_mappings must be a bool")
         self.max_edit_distance = max_edit_distance
-        rules_path, vocabulary_path, metadata_path = _resolve_artifact_paths(
+        self.use_curated_mappings = use_curated_mappings
+        rules_path, vocabulary_path, metadata_path, curated_mappings_path = _resolve_artifact_paths(
             artifact_dir,
             rules_path,
             vocabulary_path,
             metadata_path,
+            curated_mappings_path,
         )
-        self._resource_signature = (rules_path, vocabulary_path, metadata_path)
+        self._resource_signature = (
+            rules_path,
+            vocabulary_path,
+            metadata_path,
+            curated_mappings_path,
+        )
         artifact_dir = Path(artifact_dir)
 
-        if not metadata_path.is_file() or not rules_path.is_file() or not vocabulary_path.is_file():
+        required_paths = (metadata_path, rules_path, vocabulary_path, curated_mappings_path)
+        if any(not path.is_file() for path in required_paths):
             raise FileNotFoundError(
                 f"Normalizer artifacts are incomplete in {artifact_dir}; "
                 "build them with backend/scripts/train_normalizer.py"
             )
 
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        if metadata.get("schema_version") != 1:
+        if metadata.get("schema_version") != 2:
             raise ValueError(f"Unsupported normalizer artifact schema in {metadata_path}")
-        for filename, path in (("rules.json", rules_path), ("vocabulary.txt", vocabulary_path)):
+        for filename, path in (
+            ("rules.json", rules_path),
+            ("vocabulary.txt", vocabulary_path),
+            ("curated_mappings.json", curated_mappings_path),
+        ):
             expected_hash = metadata.get("artifacts", {}).get(filename, {}).get("sha256")
             if not expected_hash:
                 raise ValueError(f"Missing {filename} checksum in {metadata_path}")
@@ -156,8 +182,34 @@ class FilipinoNormalizer:
             for line in vocabulary_path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         }
-        if not self.rules or not self.vocabulary:
+        curated_payload = json.loads(curated_mappings_path.read_text(encoding="utf-8"))
+        if (
+            curated_payload.get("schema_version") != 1
+            or curated_payload.get("mapping_type") != "curated_whole_form_normalization_rules"
+            or not isinstance(curated_payload.get("mappings"), dict)
+            or not isinstance(curated_payload.get("ambiguous"), dict)
+        ):
+            raise ValueError(f"Invalid curated mapping resource in {curated_mappings_path}")
+        self.curated_mappings: dict[str, dict[str, object]] = curated_payload["mappings"]
+        self.curated_ambiguities: dict[str, list[dict[str, object]]] = curated_payload["ambiguous"]
+        self._curated_pattern = self._compile_curated_pattern(self.curated_mappings)
+        if not self.rules or not self.vocabulary or not self.curated_mappings:
             raise ValueError(f"Normalizer artifacts contain no usable rules or vocabulary: {artifact_dir}")
+
+    @staticmethod
+    def _compile_curated_pattern(mappings: dict[str, dict[str, object]]) -> re.Pattern[str] | None:
+        if not mappings:
+            return None
+        alternatives = []
+        for form in sorted(mappings, key=lambda value: (-len(value), value)):
+            parts = form.split(" ")
+            alternatives.append(r"[ \t]+".join(re.escape(part) for part in parts))
+        left_boundary = r"(?<!\w)(?<!\w['’])(?<!\w[-‐‑‒–—])"
+        right_boundary = r"(?!\w)(?!['’]\w)(?![-‐‑‒–—]\w)"
+        return re.compile(
+            left_boundary + "(?:" + "|".join(alternatives) + ")" + right_boundary,
+            re.IGNORECASE,
+        )
 
     @staticmethod
     def _collect_candidates(
@@ -204,7 +256,7 @@ class FilipinoNormalizer:
 
         return dict(generate(word))
 
-    def _normalize_lowercase(self, word: str) -> tuple[str, Optional[int]]:
+    def _normalize_automatic(self, word: str) -> tuple[str, Optional[int]]:
         lowered = word.lower()
         if len(lowered) < 2 or len(lowered) > 128 or lowered in self.vocabulary:
             return word, None
@@ -241,6 +293,37 @@ class FilipinoNormalizer:
             return word, None
         return best.strip(), distance
 
+    def _normalize_lowercase(self, word: str) -> tuple[str, Optional[int]]:
+        if self.use_curated_mappings:
+            mapping = self.curated_mappings.get(_curated_form_key(word))
+            if mapping is not None:
+                return str(mapping["normalized"]), None
+        return self._normalize_automatic(word)
+
+    def explain_word(self, word: str) -> dict[str, object]:
+        """Describe the winning whole-form or automatic normalization path."""
+        key = _curated_form_key(word)
+        mapping = self.curated_mappings.get(key)
+        is_ambiguous = key in self.curated_ambiguities
+        if self.use_curated_mappings and mapping is not None:
+            strategy = "curated_rule"
+            status = "matched"
+            source_id = mapping.get("source_id")
+        else:
+            strategy = "ngram_dld"
+            status = "ambiguous" if is_ambiguous else (
+                "available_disabled" if mapping is not None else "absent"
+            )
+            source_id = None
+        output, _distance = self._normalize_lowercase(word)
+        return {
+            "input": word,
+            "strategy": strategy,
+            "source_id": source_id,
+            "output": _apply_case(word, output),
+            "curated_rule_status": status,
+        }
+
     def normalize_word(self, word: str) -> str:
         """Return one normalized word, preserving its leading capitalization."""
         normalized, _distance = self._normalize_lowercase(word)
@@ -258,6 +341,33 @@ class FilipinoNormalizer:
 
         protected = _protected_spans(text)
         changes: list[NormalizationItem] = []
+        curated_spans: list[tuple[int, int]] = []
+        if self.use_curated_mappings and self._curated_pattern is not None:
+            for match in self._curated_pattern.finditer(text):
+                start, end = match.span()
+                if any(start < protected_end and end > protected_start for protected_start, protected_end in protected):
+                    continue
+                original = match.group()
+                key = _curated_form_key(original)
+                mapping = self.curated_mappings.get(key)
+                if mapping is None:
+                    continue
+                suggestion = _apply_case(original, str(mapping["normalized"]))
+                curated_spans.append((start, end))
+                if suggestion != original:
+                    changes.append(
+                        NormalizationItem(
+                            word=original,
+                            suggestion=suggestion,
+                            start=start,
+                            end=end,
+                            type="normalization",
+                            confidence=0.0,
+                            category="spelling_variation",
+                            strategy="curated_rule",
+                            source_id=str(mapping["source_id"]),
+                        )
+                    )
         index = 0
         while index < len(text):
             if not text[index].isalpha():
@@ -269,6 +379,9 @@ class FilipinoNormalizer:
                 index += 1
             end = index
 
+            if any(start < curated_end and end > curated_start for curated_start, curated_end in curated_spans):
+                continue
+
             if (start > 0 and (text[start - 1].isdigit() or text[start - 1] == "_")) or (
                 end < len(text) and (text[end].isdigit() or text[end] == "_")
             ):
@@ -277,7 +390,9 @@ class FilipinoNormalizer:
                 continue
 
             original = text[start:end]
-            normalized, _distance = self._normalize_lowercase(original)
+            # Curated rules are applied only by the complete-form matcher
+            # above; this token pass is strictly automatic N-Gram + DLD.
+            normalized, _distance = self._normalize_automatic(original)
             suggestion = _apply_case(original, normalized)
             if suggestion != original:
                 changes.append(
@@ -289,9 +404,11 @@ class FilipinoNormalizer:
                         type="normalization",
                         confidence=0.0,
                         category="spelling_variation",
+                        strategy="ngram_dld",
                     )
                 )
 
+        changes.sort(key=lambda change: (change.start, change.end))
         normalized_text = text
         for change in reversed(changes):
             normalized_text = (
@@ -318,6 +435,7 @@ def get_normalizer(
     rules_path: Path | str | None = None,
     vocabulary_path: Path | str | None = None,
     metadata_path: Path | str | None = None,
+    curated_mappings_path: Path | str | None = None,
     artifact_dir: Path | str = _ARTIFACT_DIR,
     max_edit_distance: int | None = 2,
 ) -> FilipinoNormalizer:
@@ -327,6 +445,7 @@ def get_normalizer(
         rules_path,
         vocabulary_path,
         metadata_path,
+        curated_mappings_path,
     )
     requested_signature = (*requested_paths, max_edit_distance)
     if _normalizer is None:
@@ -335,15 +454,17 @@ def get_normalizer(
             rules_path=rules_path,
             vocabulary_path=vocabulary_path,
             metadata_path=metadata_path,
+            curated_mappings_path=curated_mappings_path,
             max_edit_distance=max_edit_distance,
         )
         logger.info(
-            "Filipino n-gram normalizer initialized with %d rules and %d vocabulary entries",
+            "Filipino normalizer initialized with %d automatic rules, %d curated rules, and %d vocabulary entries",
             len(_normalizer.rules),
+            len(_normalizer.curated_mappings),
             len(_normalizer.vocabulary),
         )
     elif (
-        any(value is not None for value in (rules_path, vocabulary_path, metadata_path))
+        any(value is not None for value in (rules_path, vocabulary_path, metadata_path, curated_mappings_path))
         or Path(artifact_dir).resolve() != _ARTIFACT_DIR.resolve()
         or max_edit_distance != 2
     ):

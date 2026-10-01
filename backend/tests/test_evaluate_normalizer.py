@@ -17,6 +17,9 @@ from scripts.evaluate_normalizer import (
 def test_csv_parser_supports_headered_and_headerless_gold_pairs():
     assert parse_gold_pairs("input,expected\nkc,kasi\n")[0] == GoldPair(2, "kc", "kasi")
     assert parse_gold_pairs("kc,kasi,ignored\n")[0] == GoldPair(1, "kc", "kasi")
+    assert parse_gold_pairs(
+        "ID,Informal,Normalized,Category\n0001,naol,sana all,Slang\n"
+    )[0] == GoldPair(2, "naol", "sana all", "Slang")
 
 
 def test_overlap_filter_excludes_exact_and_source_overlap_but_reports_target_overlap():

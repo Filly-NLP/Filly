@@ -1,0 +1,799 @@
+{
+  "schema_version": 1,
+  "mapping_type": "curated_whole_form_normalization_rules",
+  "mappings": {
+    "accla": {
+      "normalized": "bakla",
+      "source_id": "0173",
+      "source_ids": [
+        "0173"
+      ],
+      "category": "slang"
+    },
+    "afam": {
+      "normalized": "dayuhan",
+      "source_id": "0540",
+      "source_ids": [
+        "0540"
+      ],
+      "category": "slang"
+    },
+    "akesh": {
+      "normalized": "ako",
+      "source_id": "0541",
+      "source_ids": [
+        "0541"
+      ],
+      "category": "slang"
+    },
+    "aketch": {
+      "normalized": "akin",
+      "source_id": "0549",
+      "source_ids": [
+        "0549"
+      ],
+      "category": "slang"
+    },
+    "akiskis": {
+      "normalized": "ako",
+      "source_id": "0542",
+      "source_ids": [
+        "0542"
+      ],
+      "category": "slang"
+    },
+    "alaws": {
+      "normalized": "wala",
+      "source_id": "0036",
+      "source_ids": [
+        "0036"
+      ],
+      "category": "slang"
+    },
+    "amaccana": {
+      "normalized": "tama ka na",
+      "source_id": "0172",
+      "source_ids": [
+        "0172"
+      ],
+      "category": "slang"
+    },
+    "amats": {
+      "normalized": "tama",
+      "source_id": "0034",
+      "source_ids": [
+        "0034"
+      ],
+      "category": "slang"
+    },
+    "anakis": {
+      "normalized": "anak",
+      "source_id": "0572",
+      "source_ids": [
+        "0572"
+      ],
+      "category": "slang"
+    },
+    "anech": {
+      "normalized": "ano",
+      "source_id": "0546",
+      "source_ids": [
+        "0546"
+      ],
+      "category": "slang"
+    },
+    "arat": {
+      "normalized": "tara",
+      "source_id": "0143",
+      "source_ids": [
+        "0143"
+      ],
+      "category": "slang"
+    },
+    "atabs": {
+      "normalized": "bata",
+      "source_id": "0547",
+      "source_ids": [
+        "0547"
+      ],
+      "category": "slang"
+    },
+    "atecco": {
+      "normalized": "ate ko",
+      "source_id": "0171",
+      "source_ids": [
+        "0171"
+      ],
+      "category": "slang"
+    },
+    "babush": {
+      "normalized": "paalam",
+      "source_id": "0536",
+      "source_ids": [
+        "0536"
+      ],
+      "category": "slang"
+    },
+    "baduts": {
+      "normalized": "baduy",
+      "source_id": "0218",
+      "source_ids": [
+        "0218"
+      ],
+      "category": "slang"
+    },
+    "baks": {
+      "normalized": "bakla",
+      "source_id": "0563",
+      "source_ids": [
+        "0563"
+      ],
+      "category": "slang"
+    },
+    "balakajan": {
+      "normalized": "bahala ka d'yan",
+      "source_id": "0129",
+      "source_ids": [
+        "0129"
+      ],
+      "category": "slang"
+    },
+    "beshie": {
+      "normalized": "kaibigan",
+      "source_id": "0561",
+      "source_ids": [
+        "0561"
+      ],
+      "category": "slang"
+    },
+    "bogelya": {
+      "normalized": "dibdib",
+      "source_id": "0565",
+      "source_ids": [
+        "0565"
+      ],
+      "category": "slang"
+    },
+    "bokya": {
+      "normalized": "talo",
+      "source_id": "0165",
+      "source_ids": [
+        "0165"
+      ],
+      "category": "slang"
+    },
+    "chaka": {
+      "normalized": "pangit",
+      "source_id": "0573",
+      "source_ids": [
+        "0573"
+      ],
+      "category": "slang"
+    },
+    "char": {
+      "normalized": "joke",
+      "source_id": "0186",
+      "source_ids": [
+        "0186"
+      ],
+      "category": "slang"
+    },
+    "charot": {
+      "normalized": "joke",
+      "source_id": "0185",
+      "source_ids": [
+        "0185"
+      ],
+      "category": "slang"
+    },
+    "chika": {
+      "normalized": "chismis",
+      "source_id": "0534",
+      "source_ids": [
+        "0534"
+      ],
+      "category": "slang"
+    },
+    "daks": {
+      "normalized": "malaki",
+      "source_id": "0180",
+      "source_ids": [
+        "0180"
+      ],
+      "category": "slang"
+    },
+    "dasurb": {
+      "normalized": "deserve",
+      "source_id": "0203",
+      "source_ids": [
+        "0203"
+      ],
+      "category": "slang"
+    },
+    "dedma": {
+      "normalized": "patay malisya",
+      "source_id": "0566",
+      "source_ids": [
+        "0566"
+      ],
+      "category": "slang"
+    },
+    "dehins": {
+      "normalized": "hindi",
+      "source_id": "0107",
+      "source_ids": [
+        "0107"
+      ],
+      "category": "slang"
+    },
+    "ditech": {
+      "normalized": "dito",
+      "source_id": "0570",
+      "source_ids": [
+        "0570"
+      ],
+      "category": "slang"
+    },
+    "ditey": {
+      "normalized": "dito",
+      "source_id": "0568",
+      "source_ids": [
+        "0568"
+      ],
+      "category": "slang"
+    },
+    "dyoga": {
+      "normalized": "dibdib",
+      "source_id": "0564",
+      "source_ids": [
+        "0564"
+      ],
+      "category": "slang"
+    },
+    "eabab": {
+      "normalized": "babae",
+      "source_id": "0103",
+      "source_ids": [
+        "0103"
+      ],
+      "category": "slang"
+    },
+    "ebas": {
+      "normalized": "sabi",
+      "source_id": "0101",
+      "source_ids": [
+        "0101"
+      ],
+      "category": "slang"
+    },
+    "efas": {
+      "normalized": "safe",
+      "source_id": "0166",
+      "source_ids": [
+        "0166"
+      ],
+      "category": "slang"
+    },
+    "ekalal": {
+      "normalized": "lalaki",
+      "source_id": "0104",
+      "source_ids": [
+        "0104"
+      ],
+      "category": "slang"
+    },
+    "elib": {
+      "normalized": "bilib",
+      "source_id": "0201",
+      "source_ids": [
+        "0201"
+      ],
+      "category": "slang"
+    },
+    "eme": {
+      "normalized": "joke",
+      "source_id": "0194",
+      "source_ids": [
+        "0194"
+      ],
+      "category": "slang"
+    },
+    "emz": {
+      "normalized": "joke",
+      "source_id": "0195",
+      "source_ids": [
+        "0195"
+      ],
+      "category": "slang"
+    },
+    "ermat": {
+      "normalized": "nanay",
+      "source_id": "0162",
+      "source_ids": [
+        "0162"
+      ],
+      "category": "slang"
+    },
+    "erpat": {
+      "normalized": "tatay",
+      "source_id": "0161",
+      "source_ids": [
+        "0161"
+      ],
+      "category": "slang"
+    },
+    "ganern": {
+      "normalized": "ganoon",
+      "source_id": "0553",
+      "source_ids": [
+        "0553"
+      ],
+      "category": "slang"
+    },
+    "ganornch": {
+      "normalized": "ganoon",
+      "source_id": "0021",
+      "source_ids": [
+        "0021"
+      ],
+      "category": "slang"
+    },
+    "gorabels": {
+      "normalized": "punta na",
+      "source_id": "0535",
+      "source_ids": [
+        "0535"
+      ],
+      "category": "slang"
+    },
+    "gurang": {
+      "normalized": "matanda",
+      "source_id": "0555",
+      "source_ids": [
+        "0555"
+      ],
+      "category": "slang"
+    },
+    "hanash": {
+      "normalized": "sabi",
+      "source_id": "0174",
+      "source_ids": [
+        "0174"
+      ],
+      "category": "slang"
+    },
+    "igop": {
+      "normalized": "pogi",
+      "source_id": "0562",
+      "source_ids": [
+        "0562"
+      ],
+      "category": "slang"
+    },
+    "itech": {
+      "normalized": "ito",
+      "source_id": "0552",
+      "source_ids": [
+        "0552"
+      ],
+      "category": "slang"
+    },
+    "itey": {
+      "normalized": "ito",
+      "source_id": "0559",
+      "source_ids": [
+        "0559"
+      ],
+      "category": "slang"
+    },
+    "jologs": {
+      "normalized": "baduy",
+      "source_id": "0571",
+      "source_ids": [
+        "0571"
+      ],
+      "category": "slang"
+    },
+    "jombagin": {
+      "normalized": "suntukin",
+      "source_id": "0557",
+      "source_ids": [
+        "0557"
+      ],
+      "category": "slang"
+    },
+    "junakis": {
+      "normalized": "anak",
+      "source_id": "0556",
+      "source_ids": [
+        "0556"
+      ],
+      "category": "slang"
+    },
+    "junjun": {
+      "normalized": "lalaki",
+      "source_id": "0574",
+      "source_ids": [
+        "0574"
+      ],
+      "category": "slang"
+    },
+    "juntis": {
+      "normalized": "buntis",
+      "source_id": "0551",
+      "source_ids": [
+        "0551"
+      ],
+      "category": "slang"
+    },
+    "jutay": {
+      "normalized": "maliit",
+      "source_id": "0569",
+      "source_ids": [
+        "0569"
+      ],
+      "category": "slang"
+    },
+    "juts": {
+      "normalized": "maliit",
+      "source_id": "0181",
+      "source_ids": [
+        "0181"
+      ],
+      "category": "slang"
+    },
+    "kalerki": {
+      "normalized": "kaloka",
+      "source_id": "0069",
+      "source_ids": [
+        "0069"
+      ],
+      "category": "slang"
+    },
+    "keri": {
+      "normalized": "kaya",
+      "source_id": "0035",
+      "source_ids": [
+        "0035"
+      ],
+      "category": "slang"
+    },
+    "lagowch": {
+      "normalized": "lagot",
+      "source_id": "0229",
+      "source_ids": [
+        "0229"
+      ],
+      "category": "slang"
+    },
+    "langya": {
+      "normalized": "walang hiya",
+      "source_id": "0153",
+      "source_ids": [
+        "0153"
+      ],
+      "category": "slang"
+    },
+    "lavarn": {
+      "normalized": "laban",
+      "source_id": "0179",
+      "source_ids": [
+        "0179"
+      ],
+      "category": "slang"
+    },
+    "lodi": {
+      "normalized": "idol",
+      "source_id": "0100",
+      "source_ids": [
+        "0100"
+      ],
+      "category": "slang"
+    },
+    "lods": {
+      "normalized": "idol",
+      "source_id": "0099",
+      "source_ids": [
+        "0099"
+      ],
+      "category": "slang"
+    },
+    "mamsir": {
+      "normalized": "ma'am at sir",
+      "source_id": "0190",
+      "source_ids": [
+        "0190"
+      ],
+      "category": "slang"
+    },
+    "mars": {
+      "normalized": "kumare",
+      "source_id": "0560",
+      "source_ids": [
+        "0560"
+      ],
+      "category": "slang"
+    },
+    "matsala": {
+      "normalized": "salamat",
+      "source_id": "0130",
+      "source_ids": [
+        "0130"
+      ],
+      "category": "slang"
+    },
+    "mudra": {
+      "normalized": "nanay",
+      "source_id": "0538",
+      "source_ids": [
+        "0538"
+      ],
+      "category": "slang"
+    },
+    "naol": {
+      "normalized": "sana all",
+      "source_id": "0158",
+      "source_ids": [
+        "0158"
+      ],
+      "category": "slang"
+    },
+    "nognog": {
+      "normalized": "maitim",
+      "source_id": "0567",
+      "source_ids": [
+        "0567"
+      ],
+      "category": "slang"
+    },
+    "nukajan": {
+      "normalized": "sino ka d'yan",
+      "source_id": "0213",
+      "source_ids": [
+        "0213"
+      ],
+      "category": "slang"
+    },
+    "olats": {
+      "normalized": "talo",
+      "source_id": "0159",
+      "source_ids": [
+        "0159"
+      ],
+      "category": "slang"
+    },
+    "oms": {
+      "normalized": "mismo",
+      "source_id": "0094",
+      "source_ids": [
+        "0094"
+      ],
+      "category": "slang"
+    },
+    "omsim": {
+      "normalized": "mismo",
+      "source_id": "0093",
+      "source_ids": [
+        "0093"
+      ],
+      "category": "slang"
+    },
+    "oyat": {
+      "normalized": "tayo",
+      "source_id": "0167",
+      "source_ids": [
+        "0167"
+      ],
+      "category": "slang"
+    },
+    "pagoda": {
+      "normalized": "pagod",
+      "source_id": "0575",
+      "source_ids": [
+        "0575"
+      ],
+      "category": "slang"
+    },
+    "peslak": {
+      "normalized": "mukha",
+      "source_id": "0545",
+      "source_ids": [
+        "0545"
+      ],
+      "category": "slang"
+    },
+    "petmalu": {
+      "normalized": "malupit",
+      "source_id": "0178",
+      "source_ids": [
+        "0178",
+        "0191"
+      ],
+      "category": "slang"
+    },
+    "pudra": {
+      "normalized": "tatay",
+      "source_id": "0537",
+      "source_ids": [
+        "0537"
+      ],
+      "category": "slang"
+    },
+    "puyaters": {
+      "normalized": "puyat",
+      "source_id": "0057",
+      "source_ids": [
+        "0057"
+      ],
+      "category": "slang"
+    },
+    "rapsa": {
+      "normalized": "sarap",
+      "source_id": "0176",
+      "source_ids": [
+        "0176"
+      ],
+      "category": "slang"
+    },
+    "sakalam": {
+      "normalized": "malakas",
+      "source_id": "0157",
+      "source_ids": [
+        "0157"
+      ],
+      "category": "slang"
+    },
+    "shala": {
+      "normalized": "sosyal",
+      "source_id": "0543",
+      "source_ids": [
+        "0543"
+      ],
+      "category": "slang"
+    },
+    "shota": {
+      "normalized": "kasintahan",
+      "source_id": "0170",
+      "source_ids": [
+        "0170"
+      ],
+      "category": "slang"
+    },
+    "shunga": {
+      "normalized": "tanga",
+      "source_id": "0544",
+      "source_ids": [
+        "0544"
+      ],
+      "category": "slang"
+    },
+    "sinetch": {
+      "normalized": "sino",
+      "source_id": "0539",
+      "source_ids": [
+        "0539"
+      ],
+      "category": "slang"
+    },
+    "todas": {
+      "normalized": "patay",
+      "source_id": "0160",
+      "source_ids": [
+        "0160"
+      ],
+      "category": "slang"
+    },
+    "tombits": {
+      "normalized": "tomboy",
+      "source_id": "0144",
+      "source_ids": [
+        "0144"
+      ],
+      "category": "slang"
+    },
+    "urat": {
+      "normalized": "inis",
+      "source_id": "0217",
+      "source_ids": [
+        "0217"
+      ],
+      "category": "slang"
+    },
+    "wafu": {
+      "normalized": "gwapo",
+      "source_id": "0576",
+      "source_ids": [
+        "0576"
+      ],
+      "category": "slang"
+    },
+    "waley": {
+      "normalized": "wala",
+      "source_id": "0184",
+      "source_ids": [
+        "0184"
+      ],
+      "category": "slang"
+    },
+    "wapakels": {
+      "normalized": "walang pakialam",
+      "source_id": "0175",
+      "source_ids": [
+        "0175"
+      ],
+      "category": "slang"
+    },
+    "wer na u?": {
+      "normalized": "nasaan ka na?",
+      "source_id": "0216",
+      "source_ids": [
+        "0216"
+      ],
+      "category": "slang"
+    },
+    "werk": {
+      "normalized": "trabaho",
+      "source_id": "0548",
+      "source_ids": [
+        "0548"
+      ],
+      "category": "slang"
+    },
+    "werpa": {
+      "normalized": "power",
+      "source_id": "0214",
+      "source_ids": [
+        "0214"
+      ],
+      "category": "slang"
+    },
+    "wit": {
+      "normalized": "sandali",
+      "source_id": "0558",
+      "source_ids": [
+        "0558"
+      ],
+      "category": "slang"
+    },
+    "yarn": {
+      "normalized": "yan",
+      "source_id": "0016",
+      "source_ids": [
+        "0016"
+      ],
+      "category": "slang"
+    },
+    "yorme": {
+      "normalized": "mayor",
+      "source_id": "0215",
+      "source_ids": [
+        "0215"
+      ],
+      "category": "slang"
+    },
+    "yosi": {
+      "normalized": "sigarilyo",
+      "source_id": "0163",
+      "source_ids": [
+        "0163"
+      ],
+      "category": "slang"
+    }
+  },
+  "ambiguous": {
+    "gora": [
+      {
+        "normalized": "lumarga",
+        "source_ids": [
+          "0554"
+        ]
+      },
+      {
+        "normalized": "tara",
+        "source_ids": [
+          "0169"
+        ]
+      }
+    ]
+  }
+}

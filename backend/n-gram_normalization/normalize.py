@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
         dest="artifact_dir",
         type=Path,
         default=DEFAULT_ARTIFACT_DIR,
-        help="Current rules.json/vocabulary.txt/metadata.json directory (--model is a legacy alias)",
+        help="Current normalizer artifact directory (--model is a legacy alias)",
     )
     parser.add_argument(
         "--max-edit-distance",

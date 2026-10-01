@@ -24,6 +24,8 @@ class NormalizationItem(BaseModel):
     type: str = "normalization"
     confidence: float = 0.0
     category: str = "abbreviation"
+    strategy: str = "ngram_dld"
+    source_id: str | None = None
 
 
 class GrammarCorrectionItem(BaseModel):

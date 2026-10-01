@@ -60,8 +60,9 @@ async def lifespan(app: FastAPI):
     app.state.filly_device = str(getattr(gec_service, "device", settings.DEVICE))
     app.state.filly_ready = True
     logger.info(
-        "FILLY services ready (normalizer rules=%d, vocabulary=%d, GEC device=%s, iterations=%d)",
+        "FILLY services ready (normalizer automatic rules=%d, curated rules=%d, vocabulary=%d, GEC device=%s, iterations=%d)",
         len(normalizer.rules),
+        len(normalizer.curated_mappings),
         len(normalizer.vocabulary),
         app.state.filly_device,
         settings.GECTOR_ITERATIONS,

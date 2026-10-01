@@ -3,10 +3,12 @@
 FILLY's React/Vite editor calls a FastAPI backend for Filipino spelling normalization and grammatical error correction. The backend runs the stages in this order:
 
 ```text
-Input → character n-gram + Damerau–Levenshtein normalization
+Input → curated whole-form rules, then automatic N-Gram + DLD fallback
       → normalized text → GECToR best.pt (five dependent stages)
       → corrected text → original-text suggestions
 ```
+
+The normalization component combines exact curated whole-form rules for selected colloquial expressions with automatic N-Gram rule generation and Damerau–Levenshtein ranking for unmatched forms. Ambiguous source mappings are excluded from direct lookup.
 
 The supplied `best.pt` is a **provisional Stage 2 checkpoint**, not a validated thesis-performance result. Review suggestions before accepting them.
 
@@ -67,15 +69,16 @@ If PowerShell blocks activation, use Command Prompt's `.venv\Scripts\activate.ba
 
 ### Normalizer files
 
-Startup requires these three matching files:
+Startup requires these four matching files:
 
 ```text
 backend/artifacts/normalizer/rules.json
 backend/artifacts/normalizer/vocabulary.txt
+backend/artifacts/normalizer/curated_mappings.json
 backend/artifacts/normalizer/metadata.json
 ```
 
-They are present in this workspace, so ordinary startup does **not** require rebuilding them here. They are currently untracked; provide them separately to a fresh clone or rebuild from the paired examples and base vocabulary below. The loader verifies hashes from `metadata.json` and fails startup on missing or mismatched resources.
+The loader verifies every resource hash from `metadata.json` and fails startup on missing or mismatched files. Runtime does not open the source workbook; curated mappings come from the project-owned CSV extraction described below.
 
 ### GEC checkpoint and encoder assets
 
@@ -163,7 +166,7 @@ This builds character n-gram transformation rules and vocabulary; it does **not*
 python scripts/train_normalizer.py
 ```
 
-Default inputs are `backend/normalization/data/train_pairs.csv` and `backend/normalization/data/base_vocabulary.txt`, relative to the repository root. Output is the three files under `backend/artifacts/normalizer/`. These inputs are currently untracked, so a fresh clone needs them before rebuilding. The script also accepts `--pairs`, `--base-vocabulary`, and `--output`. Rebuilding replaces target artifacts; retain any set used for an experiment.
+Default inputs are `backend/normalization/data/train_pairs.csv`, `backend/normalization/data/base_vocabulary.txt`, and `backend/normalization/data/curated_colloquial_source.csv`, relative to the repository root. The curated CSV is an extracted four-column representation of `N-GRAM_DATASET.xlsx`; metadata records the workbook and CSV hashes, row counts, consistent duplicates, and excluded ambiguities. The builder warns about ambiguous forms such as `gora` and does not select a target. Output is four files under `backend/artifacts/normalizer/`: automatic `rules.json`, `vocabulary.txt`, `curated_mappings.json`, and hash `metadata.json`. The script accepts `--pairs`, `--base-vocabulary`, `--curated-source`, and `--output`.
 
 ## Project structure
 
@@ -172,8 +175,8 @@ Filly/
 ├── best.pt                         # supplied checkpoint; currently untracked
 ├── backend/
 │   ├── app/                        # FastAPI routes, pipeline, model services
-│   ├── artifacts/normalizer/       # rules, vocabulary, hash metadata
-│   ├── normalization/data/         # rule-induction inputs
+│   ├── artifacts/normalizer/       # automatic rules, curated rules, vocabulary, hashes
+│   ├── normalization/data/         # rule-induction inputs and curated source extraction
 │   ├── scripts/train_normalizer.py
 │   ├── tests/
 │   └── requirements.txt

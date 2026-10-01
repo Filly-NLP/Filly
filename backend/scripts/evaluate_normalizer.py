@@ -64,6 +64,7 @@ class GoldPair:
     row_number: int
     source: str
     expected: str
+    category: str | None = None
 
 
 def _decode_text(raw: bytes, source: str) -> str:
@@ -92,7 +93,7 @@ def _column_index(column: int | str, header: Sequence[str] | None, role: str) ->
 
 def _header_roles(row: Sequence[str]) -> tuple[int, int] | None:
     names = [value.strip().lower() for value in row]
-    source_aliases = {"input", "source", "wrong", "misspelled", "original"}
+    source_aliases = {"input", "source", "wrong", "misspelled", "original", "informal"}
     expected_aliases = {"expected", "target", "correct", "normalized", "gold"}
     source = next((i for i, value in enumerate(names) if value in source_aliases), None)
     expected = next((i for i, value in enumerate(names) if value in expected_aliases), None)
@@ -106,6 +107,7 @@ def parse_gold_pairs(
     *,
     input_column: int | str = 0,
     expected_column: int | str = 1,
+    category_column: int | str | None = None,
     source_name: str = "gold CSV",
 ) -> list[GoldPair]:
     """Parse headered or headerless input/expected CSV pairs."""
@@ -130,16 +132,28 @@ def parse_gold_pairs(
 
     input_index = _column_index(input_column, header, "input")
     expected_index = _column_index(expected_column, header, "expected")
+    if category_column is None and header is not None:
+        category_column = next(
+            (index for index, name in enumerate(header) if name.strip().casefold() == "category"),
+            None,
+        )
+    category_index = (
+        _column_index(category_column, header, "category")
+        if category_column is not None
+        else None
+    )
     pairs: list[GoldPair] = []
     for row_number, row in rows[first_data_index:]:
-        if max(input_index, expected_index) >= len(row):
+        required_index = max(input_index, expected_index, category_index or 0)
+        if required_index >= len(row):
             raise ValueError(
                 f"Expected input and target columns in {source_name} at row {row_number}"
             )
         source, expected = row[input_index].strip(), row[expected_index].strip()
         if not source or not expected:
             raise ValueError(f"Empty input or expected value in {source_name} at row {row_number}")
-        pairs.append(GoldPair(row_number, source, expected))
+        category = row[category_index].strip() if category_index is not None else None
+        pairs.append(GoldPair(row_number, source, expected, category or None))
     if not pairs:
         raise ValueError(f"No usable gold pairs found in {source_name}")
     return pairs
@@ -472,7 +486,7 @@ def _candidate_diagnostics(normalizer: object, source: str, expected: str, predi
     else:
         failure_type = "wrong_candidate_ranking"
 
-    return {
+    diagnostics = {
         "input_in_vocabulary": in_vocabulary,
         "generated_candidate_count": len(generated),
         "vocabulary_survivor_count": len(survivors),
@@ -484,6 +498,21 @@ def _candidate_diagnostics(normalizer: object, source: str, expected: str, predi
         "failure_type": failure_type,
         "top_candidates_by_dld": top_candidates,
     }
+    explain = getattr(normalizer, "explain_word", None)
+    if callable(explain):
+        decision = explain(source)
+        diagnostics.update(
+            {
+                "strategy": decision["strategy"],
+                "source_id": decision["source_id"],
+                "curated_rule_status": decision["curated_rule_status"],
+            }
+        )
+    else:
+        diagnostics.update(
+            {"strategy": "ngram_dld", "source_id": None, "curated_rule_status": "unavailable"}
+        )
+    return diagnostics
 
 
 def normalizer_distance(left: str, right: str) -> int:
@@ -495,7 +524,12 @@ def normalizer_distance(left: str, right: str) -> int:
 _damerau_levenshtein_distance = None
 
 
-def _load_normalizer(artifact_dir: Path, *, max_edit_distance: int | None = 2):
+def _load_normalizer(
+    artifact_dir: Path,
+    *,
+    max_edit_distance: int | None = 2,
+    use_curated_mappings: bool = True,
+):
     backend_text = str(BACKEND_ROOT)
     if backend_text not in sys.path:
         sys.path.insert(0, backend_text)
@@ -507,6 +541,7 @@ def _load_normalizer(artifact_dir: Path, *, max_edit_distance: int | None = 2):
     return FilipinoNormalizer(
         artifact_dir=artifact_dir,
         max_edit_distance=max_edit_distance,
+        use_curated_mappings=use_curated_mappings,
     )
 
 
@@ -545,6 +580,7 @@ def benchmark_runtime(
     *,
     artifact_dir: Path,
     max_edit_distance: int | None = 2,
+    use_curated_mappings: bool = True,
     sizes: Sequence[int] = DEFAULT_BENCHMARK_SIZES,
     repeats: int = 5,
 ) -> dict[str, object]:
@@ -562,6 +598,7 @@ def benchmark_runtime(
             normalizer = _load_normalizer(
                 artifact_dir,
                 max_edit_distance=max_edit_distance,
+                use_curated_mappings=use_curated_mappings,
             )
             warmup_start = time.perf_counter()
             if mode == "word":
@@ -658,6 +695,7 @@ def evaluate(
     training_path: Path = TRAIN_PAIRS,
     artifact_dir: Path = DEFAULT_ARTIFACT_DIR,
     max_edit_distance: int | None = 2,
+    use_curated_mappings: bool = True,
     valid_words_path: Path | None = None,
     exclude_train_overlaps: bool = True,
     benchmark_sizes: Sequence[int] = DEFAULT_BENCHMARK_SIZES,
@@ -673,6 +711,7 @@ def evaluate(
         training_path=training_path,
         artifact_dir=artifact_dir,
         max_edit_distance=max_edit_distance,
+        use_curated_mappings=use_curated_mappings,
         archive_path=archive_path,
         valid_words_path=valid_words_path,
         exclude_train_overlaps=exclude_train_overlaps,
@@ -712,6 +751,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--gold", type=Path, help="CSV containing input and expected columns; defaults to archive test_words.csv")
     parser.add_argument("--input-column", type=_parse_column, default=0)
     parser.add_argument("--expected-column", type=_parse_column, default=1)
+    parser.add_argument("--category-column", type=_parse_column, help="Optional category column; detected by the header when present")
+    parser.add_argument(
+        "--no-curated-mappings",
+        "--ngram-only",
+        dest="use_curated_mappings",
+        action="store_false",
+        default=True,
+        help="Run the automatic N-Gram + DLD baseline for a research ablation",
+    )
     parser.add_argument("--training-pairs", type=Path, default=TRAIN_PAIRS)
     parser.add_argument("--archive", type=Path, default=SOURCE_ARCHIVE)
     parser.add_argument("--artifact-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
@@ -741,6 +789,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _decode_text(args.gold.read_bytes(), str(args.gold)),
             input_column=args.input_column,
             expected_column=args.expected_column,
+            category_column=args.category_column,
             source_name=str(args.gold),
         )
         # Save no temporary data: pass the parsed rows through the normal
@@ -751,6 +800,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             training_path=args.training_pairs,
             artifact_dir=args.artifact_dir,
             max_edit_distance=args.max_edit_distance,
+            use_curated_mappings=args.use_curated_mappings,
             archive_path=args.archive,
             valid_words_path=args.valid_words,
             exclude_train_overlaps=not args.include_train_overlaps,
@@ -766,6 +816,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             training_path=args.training_pairs,
             artifact_dir=args.artifact_dir,
             max_edit_distance=args.max_edit_distance,
+            use_curated_mappings=args.use_curated_mappings,
             valid_words_path=args.valid_words,
             exclude_train_overlaps=not args.include_train_overlaps,
             benchmark_sizes=args.benchmark_sizes,
@@ -792,6 +843,7 @@ def evaluate_from_pairs(
     training_path: Path = TRAIN_PAIRS,
     artifact_dir: Path = DEFAULT_ARTIFACT_DIR,
     max_edit_distance: int | None = 2,
+    use_curated_mappings: bool = True,
     archive_path: Path = SOURCE_ARCHIVE,
     valid_words_path: Path | None = None,
     exclude_train_overlaps: bool = True,
@@ -809,6 +861,7 @@ def evaluate_from_pairs(
         training_path=training_path,
         artifact_dir=artifact_dir,
         max_edit_distance=max_edit_distance,
+        use_curated_mappings=use_curated_mappings,
         archive_path=archive_path,
         valid_words_path=valid_words_path,
         exclude_train_overlaps=exclude_train_overlaps,
@@ -826,6 +879,7 @@ def _evaluate_loaded(
     training_path: Path,
     artifact_dir: Path,
     max_edit_distance: int | None,
+    use_curated_mappings: bool,
     archive_path: Path,
     valid_words_path: Path | None,
     exclude_train_overlaps: bool,
@@ -860,6 +914,7 @@ def _evaluate_loaded(
     normalizer = _load_normalizer(
         artifact_dir,
         max_edit_distance=max_edit_distance,
+        use_curated_mappings=use_curated_mappings,
     )
     artifact_load_ms = (time.perf_counter() - load_started) * 1_000
     first_word = runtime_words[0]
@@ -869,6 +924,7 @@ def _evaluate_loaded(
     cold_sentence_normalizer = _load_normalizer(
         artifact_dir,
         max_edit_distance=max_edit_distance,
+        use_curated_mappings=use_curated_mappings,
     )
     cold_sentence_started = time.perf_counter()
     cold_sentence_output, _ = cold_sentence_normalizer.normalize_text(first_word + " po.")
@@ -881,11 +937,33 @@ def _evaluate_loaded(
         prediction = normalizer.normalize_word(pair.source)
         predictions.append(prediction)
         candidate = _candidate_diagnostics(normalizer, pair.source, pair.expected, prediction)
-        candidate.update({"row_number": pair.row_number, "input": pair.source, "expected": pair.expected, "prediction": prediction})
+        candidate.update(
+            {
+                "row_number": pair.row_number,
+                "input": pair.source,
+                "expected": pair.expected,
+                "prediction": prediction,
+                "category": pair.category,
+            }
+        )
         candidate_rows.append(candidate)
         if prediction != pair.expected:
             traces.append(candidate)
     metrics = compute_pair_metrics(pairs, predictions)
+    category_predictions: dict[str, list[tuple[GoldPair, str]]] = {}
+    for pair, prediction in zip(pairs, predictions):
+        if pair.category:
+            category_predictions.setdefault(pair.category.strip().casefold(), []).append((pair, prediction))
+    category_metrics = {
+        category: {
+            "row_count": len(rows),
+            "metrics": compute_pair_metrics(
+                [pair for pair, _prediction in rows],
+                [prediction for _pair, prediction in rows],
+            ),
+        }
+        for category, rows in sorted(category_predictions.items())
+    }
     category_counts = Counter(str(row["failure_type"]) for row in traces)
     valid_predictions = [normalizer.normalize_word(word) for word in valid_words]
     valid_metrics = evaluate_valid_words(valid_words, valid_predictions, training_sources=training_sources)
@@ -906,13 +984,14 @@ def _evaluate_loaded(
         runtime_words,
         artifact_dir=artifact_dir,
         max_edit_distance=max_edit_distance,
+        use_curated_mappings=use_curated_mappings,
         sizes=benchmark_sizes,
         repeats=benchmark_repeats,
     ) if include_runtime else None
 
     artifact_hashes = {
         filename: hashlib.sha256((artifact_dir / filename).read_bytes()).hexdigest()
-        for filename in ("rules.json", "vocabulary.txt", "metadata.json")
+        for filename in ("rules.json", "vocabulary.txt", "curated_mappings.json", "metadata.json")
     }
     training_sources = {pair.source.lower() for pair in train_pairs}
     training_targets = {pair.expected.lower() for pair in train_pairs}
@@ -935,6 +1014,8 @@ def _evaluate_loaded(
             "normalizer_configuration": {
                 "candidate_ranking": "unrestricted Damerau-Levenshtein distance",
                 "maximum_applied_correction_distance": max_edit_distance,
+                "use_curated_mappings": use_curated_mappings,
+                "curated_mapping_count": len(normalizer.curated_mappings),
             },
             "raw_gold_pair_count": len(all_pairs),
             "nonoverlap_gold_pair_count": len(nonoverlap_pairs),
@@ -944,6 +1025,11 @@ def _evaluate_loaded(
             "excluded_train_overlap_examples": excluded,
             "target_only_overlaps_are_retained": True,
             "metrics": metrics,
+            "category_metrics": category_metrics,
+            "category_metrics_interpretation": (
+                "Source-set category metrics are descriptive coverage only when the evaluated CSV supplied the curated rules; "
+                "they are not an independent generalization estimate."
+            ),
             "valid_word_set": valid_metrics,
             "error_category_counts": dict(sorted(category_counts.items())),
             "incorrect_prediction_traces": traces,
@@ -952,7 +1038,17 @@ def _evaluate_loaded(
             "sentence_diagnostic": {
                 "input": DIAGNOSTIC_PARAGRAPH,
                 "normalized_output": diagnostic_sentence_output,
-                "changes": [{"word": item.word, "suggestion": item.suggestion, "start": item.start, "end": item.end} for item in diagnostic_sentence_changes],
+                "changes": [
+                    {
+                        "word": item.word,
+                        "suggestion": item.suggestion,
+                        "start": item.start,
+                        "end": item.end,
+                        "strategy": item.strategy,
+                        "source_id": item.source_id,
+                    }
+                    for item in diagnostic_sentence_changes
+                ],
             },
         },
         "runtime": {

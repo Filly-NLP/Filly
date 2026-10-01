@@ -125,6 +125,35 @@ def test_diagnostics_distinguish_expected_candidate_absent_and_distance_gated(mo
     assert gated["failure_type"] == "expected_candidate_distance_gated"
 
 
+def test_normalizer_decision_diagnostics_identify_curated_automatic_and_ambiguous_paths(monkeypatch):
+    monkeypatch.setattr(
+        evaluate_normalizer,
+        "_damerau_levenshtein_distance",
+        damerau_levenshtein_distance,
+    )
+    normalizer = FilipinoNormalizer()
+    curated = evaluate_normalizer._candidate_diagnostics(
+        normalizer, "naol", "sana all", normalizer.normalize_word("naol")
+    )
+    automatic = evaluate_normalizer._candidate_diagnostics(
+        normalizer, "kc", "ka", normalizer.normalize_word("kc")
+    )
+    ambiguous = evaluate_normalizer._candidate_diagnostics(
+        normalizer, "gora", "tara", normalizer.normalize_word("gora")
+    )
+
+    assert (curated["strategy"], curated["source_id"], curated["curated_rule_status"]) == (
+        "curated_rule",
+        "0158",
+        "matched",
+    )
+    assert (automatic["strategy"], automatic["source_id"]) == ("ngram_dld", None)
+    assert (ambiguous["strategy"], ambiguous["curated_rule_status"]) == (
+        "ngram_dld",
+        "ambiguous",
+    )
+
+
 def test_uncapped_baseline_cli_value_is_explicit_and_nonnegative_values_stay_supported():
     assert evaluate_normalizer._parse_max_edit_distance("none") is None
     assert evaluate_normalizer._parse_max_edit_distance("UNLIMITED") is None

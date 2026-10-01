@@ -24,6 +24,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="One-word-per-line base vocabulary",
     )
+    parser.add_argument(
+        "--curated-source",
+        type=Path,
+        help="Extracted source-sheet CSV for curated whole-form normalization rules",
+    )
     parser.add_argument("--candidate-cutoff", type=int)
     args = parser.parse_args(argv)
 
@@ -33,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         ("--output", args.output),
         ("--max-ngram", args.max_ngram),
         ("--base-vocabulary", args.base_vocabulary),
+        ("--curated-source", args.curated_source),
         ("--candidate-cutoff", args.candidate_cutoff),
     ):
         if value is not None:

@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "algorithm": "character n-gram rules with Damerau-Levenshtein ranking",
+  "schema_version": 2,
+  "algorithm": "automatic character n-gram rules with Damerau-Levenshtein ranking, supplemented by curated whole-form normalization rules",
   "algorithm_source": {
     "archive": "efficient-spelling-normalization-filipino-main (1).zip",
     "archive_sha256": "f001e49b9e7854925068774f0c600e1a83b9d00dc895a49377e648041e494b7c",
@@ -30,12 +30,33 @@
     "provenance_license": "backend/normalization/data/LICENSE.TagalogStemmer.txt"
   },
   "vocabulary_count": 18077,
+  "curated_source": {
+    "workbook_filename": "N-GRAM_DATASET.xlsx",
+    "workbook_sha256": "0dbda0dd4f143b2a29525319db9439de4f459aa72dcb0d024be9940abd34b727",
+    "extracted_path": "backend/normalization/data/curated_colloquial_source.csv",
+    "extracted_sha256": "bcf1914ed02f9797bfca2b94813aa216e465f5aeebe779d4d724b65fbf9761be",
+    "source_row_count": 1000,
+    "populated_mapping_row_count": 576,
+    "id_only_row_count": 424,
+    "slang_row_count": 100,
+    "unique_slang_input_count": 98,
+    "accepted_mapping_count": 97,
+    "duplicate_mapping_count": 1,
+    "duplicate_source_row_count": 1,
+    "ambiguous_mapping_count": 1,
+    "ambiguous_source_row_count": 2,
+    "excluded_ambiguous_input_count": 1,
+    "build_timestamp": null
+  },
   "artifacts": {
     "rules.json": {
       "sha256": "90a255b552f86a5a12d5f1651213d85e903573d3b32147a9a987adabd3f26138"
     },
     "vocabulary.txt": {
       "sha256": "31a2d2af1e0bff834778bffbdd297ad416ee6770056c1a992dc942b57f31b58c"
+    },
+    "curated_mappings.json": {
+      "sha256": "e93b86277d628765b4a3afd55220cf9535bdbb5cca9a87b145b2593d54bd608f"
     }
   }
 }

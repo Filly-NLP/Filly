@@ -65,7 +65,7 @@ class NormalizerCliIntegrationTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("Built normalizer artifacts", result.stdout)
 
-            for filename in ("rules.json", "vocabulary.txt", "metadata.json"):
+            for filename in ("rules.json", "vocabulary.txt", "curated_mappings.json", "metadata.json"):
                 first = hashlib.sha256((outputs[0] / filename).read_bytes()).hexdigest()
                 second = hashlib.sha256((outputs[1] / filename).read_bytes()).hexdigest()
                 self.assertEqual(first, second, filename)
