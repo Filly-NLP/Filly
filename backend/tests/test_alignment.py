@@ -170,6 +170,29 @@ def test_adjacent_edits_compose_into_one_safe_original_surface_suggestion():
     ] == [(0, 2, "ab", "xy", "normalization")]
 
 
+def test_gec_case_tag_composes_with_normalization_and_keeps_original_offsets():
+    original = "aq. umuwi ako? oo."
+    normalized = "ako. umuwi ako? oo."
+    case_edit = _change(normalized, 0, 3, "Ako", 1, "$TRANSFORM_CASE_CAPITAL")
+    stage_pass = _make_pass(normalized, [case_edit], 1)
+
+    suggestions = compose_suggestions(
+        original_text=original,
+        normalized_text=normalized,
+        corrected_text=stage_pass.output_text,
+        normalization_changes=[
+            NormalizationItem(word="aq", suggestion="ako", start=0, end=2)
+        ],
+        gec_passes=[stage_pass],
+    )
+
+    assert stage_pass.output_text == "Ako. umuwi ako? oo."
+    assert [
+        (item.start, item.end, item.original, item.replacement, item.source, item.tag)
+        for item in suggestions
+    ] == [(0, 2, "aq", "Ako", "combined", "$TRANSFORM_CASE_CAPITAL")]
+
+
 def test_pure_gec_insertion_at_unicode_text_end_maps_to_original_boundary():
     original = "🙂 hi"
     text = original
@@ -209,4 +232,63 @@ def test_gec_edit_undone_by_later_pass_does_not_change_suggestion_provenance():
         (item.start, item.end, item.original, item.replacement, item.source, item.tag)
         for item in suggestions
     ] == [(0, 2, "aq", "ako", "normalization", "NORMALIZATION")]
+
+
+def test_pipeline_uses_gec_output_without_unreported_case_changes():
+    original = "kumain ako. umuwi ako? oo."
+    gec = _FakeGEC([_empty_batch])
+    pipeline = FillyPipeline(_FakeNormalizer(original, []), gec, iterations=1)
+
+    result = pipeline.analyze(original)
+
+    assert result.corrected_text == original
+    assert result.gec.passes[-1].output_text == original
+    assert result.gec.passes[-1].changes == []
+    assert result.suggestions == []
+
+
+def test_gec_case_and_grammar_tags_map_to_their_global_recommendation_offsets():
+    original = "ako ay umuwi. kumain ako."
+
+    def correct_sentences(text, iteration):
+        start = text.index("umuwi")
+        second_start = text.index("kumain")
+        return [
+            _change(text, 0, 3, "Ako", iteration, "$TRANSFORM_CASE_CAPITAL"),
+            _change(
+                text,
+                start,
+                start + len("umuwi"),
+                "bumalik",
+                iteration,
+                "$REPLACE_bumalik",
+            ),
+            _change(
+                text,
+                second_start,
+                second_start + len("kumain"),
+                "Kumain",
+                iteration,
+                "$TRANSFORM_CASE_CAPITAL",
+            ),
+        ]
+
+    pipeline = FillyPipeline(
+        _FakeNormalizer(original, []),
+        _FakeGEC([correct_sentences]),
+        iterations=1,
+    )
+
+    result = pipeline.analyze(original)
+
+    assert result.corrected_text == "Ako ay bumalik. Kumain ako."
+    assert result.gec.passes[-1].output_text == result.corrected_text
+    assert [
+        (item.start, item.end, item.original, item.replacement, item.source, item.tag)
+        for item in result.suggestions
+    ] == [
+        (0, 3, "ako", "Ako", "gec", "$TRANSFORM_CASE_CAPITAL"),
+        (7, 12, "umuwi", "bumalik", "gec", "$REPLACE_bumalik"),
+        (14, 20, "kumain", "Kumain", "gec", "$TRANSFORM_CASE_CAPITAL"),
+    ]
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from app.services.gec import (
 )
 from app.services.gec_checkpoint import balarila_registry, transforms
 from app.services.gec_checkpoint.tokenizer import tokenize_with_offsets
+from app.services.gec_checkpoint.predictor import TokenLabelPrediction
 
 
 class FakeBatch(dict):
@@ -93,6 +95,123 @@ def make_service() -> tuple[GECService, FakeModel, FakeTokenizer]:
     return service, model, tokenizer
 
 
+class SentenceBatchTokenizer(FakeTokenizer):
+    def __init__(self):
+        super().__init__()
+        self._ids = {
+            "ako": 100,
+            "ay": 101,
+            "umuwi": 102,
+            ".": 103,
+            "kumain": 104,
+            "bukas": 105,
+            "kalat": 106,
+            "sana": 107,
+        }
+
+
+class SentenceBatchModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.marker = nn.Parameter(torch.zeros(()))
+        self.seen_batches: list[list[list[int]]] = []
+        self.calls = 0
+
+    def forward(self, input_ids, attention_mask=None):
+        self.calls += 1
+        self.seen_batches.append(input_ids.tolist())
+        batch, sequence = input_ids.shape
+        correction = torch.full((batch, sequence, 6), -8.0, device=input_ids.device)
+        detection = torch.full((batch, sequence, 2), -8.0, device=input_ids.device)
+        correction[..., 0] = 8.0
+        detection[..., 0] = 8.0
+        for row in range(batch):
+            first_word_id = int(input_ids[row, 1].item())
+            if first_word_id in {100, 104}:
+                correction[row, 1, 1] = 12.0
+                detection[row, 1, 1] = 12.0
+            for position, token_id in enumerate(input_ids[row].tolist()):
+                if token_id == 102:
+                    correction[row, position, 2] = 12.0
+                    detection[row, position, 1] = 12.0
+                elif token_id == 100 and position > 1:
+                    following_id = int(input_ids[row, position + 1].item())
+                    if following_id != 107:
+                        correction[row, position, 3] = 12.0
+                        detection[row, position, 1] = 12.0
+                elif token_id == 106:
+                    correction[row, position, 4] = 12.0
+                    detection[row, position, 1] = 12.0
+                elif self.calls > 1 and token_id == 101 and position >= 4:
+                    correction[row, position, 5] = 12.0
+                    detection[row, position, 1] = 12.0
+        return type("Output", (), {"correction_logits": correction, "detection_logits": detection})()
+
+
+def test_sentence_batch_inference_preserves_global_offsets_and_original_spacing():
+    model = SentenceBatchModel()
+    tokenizer = SentenceBatchTokenizer()
+    service = GECService(
+        model=model,
+        tokenizer=tokenizer,
+        label_vocab={
+            "$KEEP": 0,
+            "$TRANSFORM_CASE_CAPITAL": 1,
+            "$REPLACE_bumalik": 2,
+            "$APPEND_sana": 3,
+            "$DELETE": 4,
+            "$REPLACE_ng": 5,
+        },
+        device="cpu",
+    )
+    text = "  ako ay umuwi. \nkumain ako bukas kalat ay.\t"
+
+    result = service.correct_iteratively(text, iterations=2)
+    first_pass, second_pass = result.passes
+
+    assert tokenizer.observed == [
+        ("ako", "ay", "umuwi", "."),
+        ("kumain", "ako", "bukas", "kalat", "ay", "."),
+        ("Ako", "ay", "bumalik", "."),
+        ("Kumain", "ako", "sana", "bukas", "ay", "."),
+    ]
+    assert len(model.seen_batches) == 2
+    assert len(model.seen_batches[0]) == 2
+    assert [len(batch) for batch in model.seen_batches] == [2, 2]
+    assert first_pass.output_text == "  Ako ay bumalik. \nKumain ako sana bukas ay.\t"
+    assert second_pass.output_text == "  Ako ay bumalik. \nKumain ako sana bukas ng.\t"
+    assert first_pass.input_tokens == (
+        "ako", "ay", "umuwi", ".", "kumain", "ako", "bukas", "kalat", "ay", ".",
+    )
+    assert first_pass.labels == (
+        "$TRANSFORM_CASE_CAPITAL",
+        "$KEEP",
+        "$REPLACE_bumalik",
+        "$KEEP",
+        "$TRANSFORM_CASE_CAPITAL",
+        "$APPEND_sana",
+        "$KEEP",
+        "$DELETE",
+        "$KEEP",
+        "$KEEP",
+    )
+    assert [
+        (change.start, change.end, change.original, change.correction, change.label)
+        for change in first_pass.changes
+    ] == [
+        (2, 5, "ako", "Ako", "$TRANSFORM_CASE_CAPITAL"),
+        (9, 14, "umuwi", "bumalik", "$REPLACE_bumalik"),
+        (17, 23, "kumain", "Kumain", "$TRANSFORM_CASE_CAPITAL"),
+        (27, 27, "", " sana", "$APPEND_sana"),
+        (33, 39, " kalat", "", "$DELETE"),
+    ]
+    changed_word_start = first_pass.output_text.index("ay.", first_pass.output_text.index("Kumain"))
+    assert [
+        (change.start, change.end, change.original, change.correction, change.label)
+        for change in second_pass.changes
+    ] == [(changed_word_start, changed_word_start + 2, "ay", "ng", "$REPLACE_ng")]
+
+
 def test_five_passes_chain_each_output_into_the_next_and_use_inference_mode():
     service, model, tokenizer = make_service()
 
@@ -106,6 +225,64 @@ def test_five_passes_chain_each_output_into_the_next_and_use_inference_mode():
     assert model.inference_modes == [True] * 5
     assert [change.iteration for change in result.changes] == [1, 2]
     assert all(change.start == 0 and change.end == 1 for change in result.changes)
+
+
+def test_new_period_is_retokenized_but_does_not_create_a_new_sentence_slot():
+    service = GECService(
+        model=FakeModel(), tokenizer=FakeTokenizer(),
+        label_vocab={"$KEEP": 0, "$ADD_PUNC_PERIOD": 1}, device="cpu",
+    )
+    seen_batches = []
+
+    def predict(token_batches, *, batch_size):
+        seen_batches.append(tuple(tuple(row) for row in token_batches))
+        predictions = []
+        for row in token_batches:
+            labels = ["$KEEP"] * len(row)
+            if len(seen_batches) == 1:
+                labels[row.index("umuwi")] = "$ADD_PUNC_PERIOD"
+            predictions.append(TokenLabelPrediction(
+                tuple(labels), (0.9,) * len(row), (False,) * len(row),
+                any(label != "$KEEP" for label in labels),
+            ))
+        return predictions
+
+    service.predictor.predict = predict
+    result = service.correct_iteratively("ako ay umuwi kumain ako", iterations=2)
+
+    assert result.passes[0].output_text == "ako ay umuwi. kumain ako"
+    assert seen_batches[0] == (("ako", "ay", "umuwi", "kumain", "ako"),)
+    assert seen_batches[1] == (("ako", "ay", "umuwi", ".", "kumain", "ako"),)
+    assert result.passes[1].labels[4] == "$KEEP"
+
+
+def test_repeated_punctuation_label_is_a_new_prediction_on_each_pass():
+    service = GECService(
+        model=FakeModel(), tokenizer=FakeTokenizer(),
+        label_vocab={"$KEEP": 0, "$ADD_PUNC_EMARK": 1}, device="cpu",
+    )
+    seen_batches = []
+
+    def predict(token_batches, *, batch_size):
+        seen_batches.append(tuple(tuple(row) for row in token_batches))
+        predictions = []
+        for row in token_batches:
+            labels = ["$KEEP"] * len(row)
+            labels[-1] = "$ADD_PUNC_EMARK"
+            predictions.append(TokenLabelPrediction(
+                tuple(labels), (0.9,) * len(row), (True,) * len(row), True,
+            ))
+        return predictions
+
+    service.predictor.predict = predict
+    result = service.correct_iteratively("Umalis siya!", iterations=3)
+
+    assert result.iteration_outputs == (
+        "Umalis siya!!", "Umalis siya!!!", "Umalis siya!!!!",
+    )
+    assert [row[-1] for batch in seen_batches for row in batch] == ["!", "!", "!"]
+    assert [len(batch[0]) for batch in seen_batches] == [3, 4, 5]
+    assert [change.label for change in result.changes] == ["$ADD_PUNC_EMARK"] * 3
 
 
 class DeleteSoleTokenModel(FakeModel):
@@ -181,7 +358,53 @@ def test_single_pass_preserves_exact_unicode_surface_and_reports_token_spans():
     assert result.input_tokens == tokenize_with_offsets(text).tokens
     assert result.labels == ("$KEEP",) * len(result.input_tokens)
     assert result.changes == ()
-    assert tokenizer.observed == [result.input_tokens]
+    assert tokenizer.observed == [
+        ("Kamusta", ",", "mundo", "!"),
+        ("こんにちは", "。"),
+    ]
+    assert tuple(token for sentence in tokenizer.observed for token in sentence) == result.input_tokens
+
+
+def test_case_capital_label_is_derived_and_replayed_by_the_active_edit_layer():
+    label = transforms.derive_label_for_output("kumain", ("Kumain",))
+
+    assert label == "$TRANSFORM_CASE_CAPITAL"
+    assert transforms.apply_label("kumain", label) == ("Kumain",)
+    assert transforms.apply_labels(
+        ("kumain", "ako", "."),
+        (label, "$KEEP", "$KEEP"),
+    ) == ("Kumain", "ako", ".")
+    assert transforms.apply_labels_to_text(
+        "  kumain   ako.\n",
+        (label, "$KEEP", "$KEEP"),
+    ) == "  Kumain   ako.\n"
+
+
+@pytest.mark.skipif(
+    os.environ.get("FILLY_REAL_GEC_TESTS") != "1",
+    reason="set FILLY_REAL_GEC_TESTS=1 to run the supplied checkpoint diagnostic",
+)
+def test_real_checkpoint_capitalizes_same_sentence_at_paragraph_position():
+    from app.services.filly_pipeline import FillyPipeline
+    from app.services.normalizer import get_normalizer
+
+    service = GECService()
+    pipeline = FillyPipeline(get_normalizer(), service, iterations=5)
+    standalone = pipeline.analyze("kumain ako.")
+    paragraph = pipeline.analyze("ako ay umuwi. kumain ako.")
+
+    standalone_first_pass = standalone.gec.passes[0]
+    paragraph_first_pass = paragraph.gec.passes[0]
+    standalone_word = standalone_first_pass.input_tokens.index("kumain")
+    paragraph_word = paragraph_first_pass.input_tokens.index("kumain")
+    assert standalone_first_pass.labels[standalone_word] == "$TRANSFORM_CASE_CAPITAL"
+    assert paragraph_first_pass.labels[paragraph_word] == "$TRANSFORM_CASE_CAPITAL"
+    assert standalone_first_pass.output_text == "Kumain ako."
+    assert paragraph_first_pass.output_text == "Ako ay umuwi. Kumain ako."
+    assert standalone.corrected_text == "Kumain ako."
+    assert paragraph.corrected_text == "Ako ay umuwi. Kumain ako."
+    assert standalone.corrected_text == standalone.gec.passes[-1].output_text
+    assert paragraph.corrected_text == paragraph.gec.passes[-1].output_text
 
 
 def test_missing_checkpoint_fails_instead_of_using_rule_based_fallback():
@@ -204,6 +427,10 @@ def test_supplied_checkpoint_metadata_and_train_only_vocabulary_load_safely():
     assert metadata["model_revision"] == "acb6b204dfb1afdd7476eae5da234cbcf8899846"
     assert metadata["stage"] == "stage2"
     assert metadata["readiness_status"] == "PROVISIONAL / NON_PRODUCTION / NOT_THESIS_PERFORMANCE"
+    assert vocab["$TRANSFORM_CASE_CAPITAL"] == 70
+    assert vocab["$TRANSFORM_CASE_LOWER"] == 71
+    assert "$TRANSFORM_CASE_UPPER" not in vocab
+    assert "$TRANSFORM_CASE_CAPITAL_1" not in vocab
     del payload
 
 

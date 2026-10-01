@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
@@ -23,6 +23,10 @@ from app.services.gec_checkpoint.transforms import (
     _label_segments,
     apply_labels_to_text,
     render_tokens,
+)
+from app.services.gec_checkpoint.segmentation import (
+    reassemble_sentences,
+    segment_sentences,
 )
 
 logger = logging.getLogger(__name__)
@@ -451,39 +455,114 @@ class GECService:
         )
         self.model.eval()
 
-    def _correct_once(self, text: str, *, iteration: int) -> GECIteration:
-        tokenized = tokenize_with_offsets(text)
-        tokens = tokenized.tokens
-        if not tokens:
-            return GECIteration(iteration, text, text, (), (), (), (), model_invoked=False)
+    def _correct_sentence_parts(
+        self,
+        text: str,
+        sentence_texts: tuple[str, ...],
+        gaps: tuple[str, ...],
+        *,
+        iteration: int,
+    ) -> tuple[GECIteration, tuple[str, ...]]:
+        """Correct fixed sentence slots as a batch and map edits to paragraph offsets."""
+        if len(gaps) != len(sentence_texts) + 1:
+            raise ValueError("sentence layouts require exactly one more gap than sentence")
+
+        sentence_offsets: list[int] = []
+        cursor = len(gaps[0])
+        for index, sentence in enumerate(sentence_texts):
+            sentence_offsets.append(cursor)
+            cursor += len(sentence) + len(gaps[index + 1])
+
+        tokenized_sentences = [
+            (index, tokenize_with_offsets(sentence))
+            for index, sentence in enumerate(sentence_texts)
+        ]
+        model_inputs = [
+            (index, tokenized.tokens)
+            for index, tokenized in tokenized_sentences
+            if tokenized.tokens
+        ]
+        input_tokens = tokenize_with_offsets(text).tokens
+        flattened_model_tokens = tuple(
+            token for _index, tokens in model_inputs for token in tokens
+        )
+        if flattened_model_tokens != input_tokens:
+            raise RuntimeError("sentence segmentation changed the paragraph token sequence")
+
+        if not model_inputs:
+            iteration_result = GECIteration(
+                iteration,
+                text,
+                text,
+                (),
+                (),
+                (),
+                (),
+                model_invoked=False,
+            )
+            return iteration_result, sentence_texts
+
         try:
-            predictions = self.predictor.predict([tokens], batch_size=1)
+            predictions = self.predictor.predict(
+                [tokens for _index, tokens in model_inputs],
+                batch_size=32,
+            )
         except ValueError as exc:
             if "input exceeds max_subword_tokens" in str(exc):
                 raise GECInputTooLong(
                     "Text exceeds the GEC model's token limit. Shorten or split the text and try again."
                 ) from exc
             raise
-        if len(predictions) != 1:
-            raise RuntimeError("GEC predictor did not return one sentence result")
-        prediction = predictions[0]
-        output_text = apply_labels_to_text(text, prediction.labels)
-        changes = _change_records(
-            text,
-            prediction.labels,
-            prediction.detection_error_probabilities,
-            iteration=iteration,
-        )
+        if len(predictions) != len(model_inputs):
+            raise RuntimeError("GEC predictor did not return one result per sentence")
+
+        output_sentences = list(sentence_texts)
+        labels: list[str] = []
+        changes: list[GECChange] = []
+        for (sentence_index, tokens), prediction in zip(model_inputs, predictions):
+            sentence = sentence_texts[sentence_index]
+            output_sentences[sentence_index] = apply_labels_to_text(sentence, prediction.labels)
+            labels.extend(prediction.labels)
+            local_changes = _change_records(
+                sentence,
+                prediction.labels,
+                prediction.detection_error_probabilities,
+                iteration=iteration,
+            )
+            sentence_offset = sentence_offsets[sentence_index]
+            changes.extend(
+                replace(
+                    change,
+                    start=sentence_offset + change.start,
+                    end=sentence_offset + change.end,
+                )
+                for change in local_changes
+            )
+
+        output_text = reassemble_sentences(output_sentences, gaps)
         output_tokens = tokenize_with_offsets(output_text).tokens
-        return GECIteration(
+        iteration_result = GECIteration(
             iteration=iteration,
             input_text=text,
             output_text=output_text,
-            input_tokens=tokens,
+            input_tokens=input_tokens,
             output_tokens=output_tokens,
-            labels=prediction.labels,
-            changes=changes,
+            labels=tuple(labels),
+            changes=tuple(changes),
+            model_invoked=True,
         )
+        return iteration_result, tuple(output_sentences)
+
+    def _correct_once(self, text: str, *, iteration: int) -> GECIteration:
+        layout = segment_sentences(text)
+        sentence_texts = tuple(sentence.text for sentence in layout.sentences)
+        result, _output_sentences = self._correct_sentence_parts(
+            text,
+            sentence_texts,
+            layout.gaps,
+            iteration=iteration,
+        )
+        return result
 
     def correct_once(self, text: str) -> GECIteration:
         """Run one inference pass and return its exact replay trace."""
@@ -499,6 +578,9 @@ class GECService:
         if type(pass_count) is not int or pass_count < 1:
             raise ValueError("iterations must be a positive integer")
 
+        layout = segment_sentences(text)
+        sentence_texts = tuple(sentence.text for sentence in layout.sentences)
+        gaps = layout.gaps
         current = text
         passes: list[GECIteration] = []
         # Empty input has no inference stages. Once nonempty text is accepted,
@@ -514,7 +596,12 @@ class GECService:
                 metadata=dict(self.metadata),
             )
         for iteration in range(1, pass_count + 1):
-            result = self._correct_once(current, iteration=iteration)
+            result, sentence_texts = self._correct_sentence_parts(
+                current,
+                sentence_texts,
+                gaps,
+                iteration=iteration,
+            )
             passes.append(result)
             current = result.output_text
 
