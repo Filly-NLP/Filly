@@ -40,6 +40,8 @@ npm run dev
 
 Open `http://localhost:5173`. Backend startup loads the normalizer and checkpoint before it reports ready.
 
+For offline research evaluation from the repository root, see [the evaluation CLI guide](docs/evaluation.md). It supports GEC-only, normalized, and paired runs from a validated CSV.
+
 ## First-time setup
 
 The configured repository remote is `https://github.com/Filly-NLP/Filly.git`:
