@@ -127,3 +127,10 @@ export function applyAcceptedSuggestionsSafely(text, suggestions) {
     suggestions.filter((suggestion) => suggestion.status === 'accepted'),
   )
 }
+
+// Keep the existing full-correction preview: pending/accepted apply; ignored preserve source.
+export function deriveResolvedOutput(originalText, suggestions) {
+  return applySelectedSuggestionsSafely(originalText, suggestions.filter(
+    (suggestion) => suggestion.status === 'pending' || suggestion.status === 'accepted',
+  ))
+}

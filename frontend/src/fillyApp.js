@@ -4,10 +4,11 @@
 
 import { analyzeText } from './api/fillyApi.js'
 import {
-  applyAcceptedSuggestionsSafely,
+  deriveResolvedOutput,
   normalizeSuggestions,
   segmentText,
 } from './suggestions.js'
+import { formatSuggestionSource } from './presentation.js'
 
 // ══════════════════════════════════════════════
 // DATA
@@ -151,6 +152,7 @@ window.segments = [];
 window.suggestions = {};
 window.isProgrammaticEdit = false;
 window.analysisResult = null;
+let resolvedOutputText = '';
 let activeTooltip = null;
 let currentAnalysisText = null;
 let analysisRequestId = 0;
@@ -476,19 +478,22 @@ function renderOutputDisplay() {
     return;
   }
 
+  const resolved = deriveResolvedOutput(currentAnalysisText, Object.values(window.suggestions));
+  if (!resolved.ok) { showToast(resolved.reason); return; }
+  resolvedOutputText = resolved.text;
   const normalized = escH(result.normalized_text);
-  const corrected = escH(result.corrected_text);
+  const corrected = escH(resolvedOutputText);
   out.innerHTML = '<section class="result-stage normalization-stage">'
     + '<h4>After normalization</h4><div class="output-text">' + normalized + '</div></section>'
     + '<section class="result-stage grammar-stage">'
     + '<h4>Correction preview (includes pending suggestions)</h4><div class="output-text">' + corrected + '</div></section>';
   document.getElementById('outputChars').textContent =
-    Array.from(result.corrected_text).length + ' characters';
+    Array.from(resolvedOutputText).length + ' characters';
 }
 
 function getOutputPlainText() {
   const editor = document.getElementById('editorTextarea');
-  return window.analysisResult && currentAnalysisText === editor.value ? editor.value : '';
+  return window.analysisResult && currentAnalysisText === editor.value ? resolvedOutputText : '';
 }
 function renderRecs() {
   const body = document.getElementById('recsBody');
@@ -498,14 +503,14 @@ function renderRecs() {
   if (bulkActions) bulkActions.style.display = pending.length > 0 ? 'flex' : 'none';
   document.getElementById('recsCount').textContent = 'Suggestions (' + pending.length + ')';
 
-  if (pending.length === 0) {
+  if (suggestions.length === 0) {
     body.innerHTML = '<div class="recs-empty"><p>No pending suggestions.</p>'
       + '<span>The backend returned ' + suggestions.length + ' correction(s).</span></div>';
     return;
   }
 
   body.innerHTML = '';
-  pending.forEach((suggestion, index) => {
+  suggestions.forEach((suggestion, index) => {
     const card = document.createElement('article');
     card.className = 'sug-card' + (suggestion.id === activeSuggestionId ? ' selected' : '');
     card.dataset.sugId = suggestion.id;
@@ -515,12 +520,18 @@ function renderRecs() {
     card.style.animationDelay = (index * 0.06) + 's';
     const kind = suggestionKind(suggestion);
     card.innerHTML = '<div class="sug-header"><button class="sug-select sug-tag '
-      + 'tag-' + suggestionClass(suggestion) + '" type="button">' + kind + '</button>'
-      + (suggestion.tag ? '<span class="sug-label">' + escH(suggestion.tag) + '</span>' : '')
+      + 'tag-' + suggestionClass(suggestion) + '" type="button">' + formatSuggestionSource(suggestion.source) + '</button>'
       + '</div><div class="sug-from">' + escH(suggestion.original) + '</div>'
       + '<div class="sug-to">&rarr; ' + escH(suggestion.replacement) + '</div>'
       + '<div class="sug-actions"><button class="sug-btn sug-accept" type="button">Accept</button>'
       + '<button class="sug-btn sug-ignore" type="button">Ignore</button></div>';
+    if (suggestion.status !== 'pending') {
+      card.classList.add('resolved');
+      card.querySelector('.sug-actions').innerHTML = '<span class="sug-status">' + (suggestion.status === 'accepted' ? 'Accepted' : 'Ignored') + '</span>';
+      card.querySelector('.sug-select').disabled = true;
+      body.appendChild(card);
+      return;
+    }
     body.appendChild(card);
 
     card.addEventListener('click', (event) => {
@@ -545,31 +556,15 @@ function renderRecs() {
 function acceptSuggestion(id) {
   const suggestion = window.suggestions[id];
   if (!suggestion || suggestion.status !== 'pending') return;
-  const editor = document.getElementById('editorTextarea');
-  const suggestions = Object.values(window.suggestions);
-  const current = currentAnalysisText === editor.value;
-  suggestion.status = 'accepted';
-  const applied = current
-    ? applyAcceptedSuggestionsSafely(currentAnalysisText, suggestions)
-    : { ok: false, reason: 'The editor text changed after analysis.' };
-
-  if (!applied.ok) {
-    invalidateAnalysis();
-    showToast('The suggestion was stale. Analyze the current text again.');
-    return;
-  }
-  editor.value = applied.text;
-  ANALYTICS.acceptedSuggestions += 1;
-  updateAnalytics();
-  updateStats();
-  invalidateAnalysis();
-  if (applied.text.trim()) processText();
+  acceptSuggestions([suggestion]);
 }
 
 function ignoreSuggestion(id) {
   const suggestion = window.suggestions[id];
   if (!suggestion || suggestion.status !== 'pending') return;
+  if (currentAnalysisText !== document.getElementById('editorTextarea').value) { invalidateAnalysis(); return; }
   suggestion.status = 'ignored';
+  removeActiveTooltip();
   activeSuggestionId = null;
   ANALYTICS.ignoredSuggestions++;
   updateAnalytics();
@@ -577,12 +572,18 @@ function ignoreSuggestion(id) {
 }
 
 function acceptAllSuggestions() {
-  const editor = document.getElementById('editorTextarea');
   const pending = Object.values(window.suggestions).filter((suggestion) => suggestion.status === 'pending');
   if (pending.length === 0) return;
-  pending.forEach((suggestion) => { suggestion.status = 'accepted'; });
-  const applied = currentAnalysisText === editor.value
-    ? applyAcceptedSuggestionsSafely(currentAnalysisText, Object.values(window.suggestions))
+  acceptSuggestions(pending);
+}
+
+function acceptSuggestions(selectedSuggestions) {
+  const editor = document.getElementById('editorTextarea');
+  const suggestions = Object.values(window.suggestions);
+  const current = currentAnalysisText === editor.value;
+  selectedSuggestions.forEach((suggestion) => { suggestion.status = 'accepted'; });
+  const applied = current
+    ? deriveResolvedOutput(currentAnalysisText, suggestions)
     : { ok: false, reason: 'The editor text changed after analysis.' };
 
   if (!applied.ok) {
@@ -590,15 +591,17 @@ function acceptAllSuggestions() {
     showToast('Suggestions were stale. Analyze the current text again.');
     return;
   }
-  editor.value = applied.text;
-  ANALYTICS.acceptedSuggestions += pending.length;
+
+  activeSuggestionId = null;
+  removeActiveTooltip();
+  ANALYTICS.acceptedSuggestions += selectedSuggestions.length;
   updateAnalytics();
-  updateStats();
-  invalidateAnalysis();
-  if (applied.text.trim()) processText();
+  reRenderAll();
 }
 
 function ignoreAllSuggestions() {
+  if (currentAnalysisText !== document.getElementById('editorTextarea').value) { invalidateAnalysis(); return; }
+  removeActiveTooltip();
   const pending = Object.values(window.suggestions).filter((suggestion) => suggestion.status === 'pending');
   pending.forEach((suggestion) => { suggestion.status = 'ignored'; });
   activeSuggestionId = null;
@@ -618,6 +621,9 @@ function selectSuggestion(id) {
 
   activeSuggestionId = id;
   selectTextRange(suggestion.start, suggestion.end);
+  document.querySelectorAll('.original-highlight').forEach((span) => {
+    span.classList.toggle('selected', span.dataset.sugId === id);
+  });
   document.querySelectorAll('.sug-card').forEach((card) => {
     const active = card.dataset.sugId === id;
     card.classList.toggle('selected', active);
