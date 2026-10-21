@@ -1,0 +1,11 @@
+# DEV-only candidate acceptance plan
+
+Compare the frozen current Stage 3 checkpoint with one candidate from the 40/60 mixture. No training or evaluation is executed by preparation.
+
+Use (A) the existing official Stage 3 DEV descriptor, (B) the historical duplicate DEV stratum, (C) the sealed 100-case diagnostic suite, (D) its 20 identity controls plus existing natural-repetition identity DEV controls, and (E) the other actual DEV correction tags. Retain fixed case IDs and report identical denominators for both models. Keep source clean/document groups together. Preserve any selection/confirmation grouping established before candidate evaluation; do not invent a claim of held-out confirmation after looking at results.
+
+Report duplicate final-output precision, recall, F0.5, unseen-word recall, content-word recall, and overall diagnostic recall, with raw TP/FP/FN and paired case outcomes. Report canonical token-slot scores separately because duplicate copies allow equivalent deletion slots. Evaluate frozen pass 1 and frozen pass 5 separately; use the same production thresholds, encoder, tokenizer, vocabulary and decoder for both checkpoints.
+
+Primary signals: unseen and content-word recall must rise meaningfully above zero, and overall diagnostic duplicate recall must materially exceed the current 23/100 pass-1 and 26/100 pass-5 baselines. Reuse the earlier plan's development protection gates: at least five absolute percentage points duplicate final-output recall improvement on the designated confirmation suite, duplicate precision at least 95%, duplicate F0.5 decline no greater than one point, overall GEC F0.5/ERR decline no greater than 0.5 points. Audit every major error tag for regression and report uncertainty intervals and case counts rather than treating the small diagnostic suite as release evidence.
+
+Count false deletions on all identity controls and on intentional repetition separately; reject broad false-deletion growth. Do not demand 10/10 on unprovided manual examples. No manual/stress examples enter TRAIN. Final TEST remains sealed throughout remediation selection. The 40/60 ratio is experimental, with manifests supporting later independent 20/80 or 50/50 ablations.

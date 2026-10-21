@@ -1,0 +1,18 @@
+{
+  "sentences": 1000,
+  "source": "synthetic engineering benchmark, not training data",
+  "alignment_enabled": true,
+  "legacy_context": "empty in-memory context, duplicate generator needs no frozen resources",
+  "legacy": {
+    "seconds": 0.12266730004921556,
+    "candidates": 1750,
+    "sentences_per_second": 8152.1318199617035,
+    "milliseconds_per_candidate": 0.07009560002812318
+  },
+  "v2": {
+    "seconds": 0.40135459997691214,
+    "candidates": 5500,
+    "sentences_per_second": 2491.5623243324603,
+    "milliseconds_per_candidate": 0.07297356363216584
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "existing_gec_tests": {
+    "command": "$env:PYTHONPATH='src'; .\\.venv\\Scripts\\python.exe -B -c \"import unittest; loader=unittest.TestLoader(); suite=unittest.TestSuite(loader.discover('tests',pattern=p) for p in ['test_data_tagging.py','test_tagged_dataset.py','test_model_training_inference.py','test_streaming_evaluation_artifacts.py']); result=unittest.TextTestRunner(verbosity=1).run(suite); raise SystemExit(not result.wasSuccessful())\"",
+    "cwd": "Grammar-Error-Correction",
+    "passed": 36,
+    "seconds": 0.492,
+    "exit_code": 0
+  },
+  "pytest_attempt": {
+    "cwd": "Grammar-Error-Correction",
+    "command": ".\\.venv\\Scripts\\python.exe -B -m pytest tests/test_model_training_inference.py tests/test_model_integration.py -q --disable-warnings",
+    "exit_code": 1,
+    "reason": "GEC virtual environment has no pytest; used native unittest suites successfully."
+  },
+  "geg_tests": {
+    "command": ".\\.venv\\Scripts\\python.exe -B -m pytest tests/test_duplicate_word_v2.py tests/test_phase5_8.py tests/test_remediation_core.py tests/test_gec_dataset_contract.py -q -p no:cacheprovider",
+    "cwd": "Grammar-Error-Generator",
+    "passed": 35,
+    "subtests_passed": 6,
+    "seconds": 8.64,
+    "exit_code": 0
+  },
+  "benchmark_note": "First root benchmark from workspace root with default legacy context failed frozen morphology upstream identity validation; bounded rerun used explicit GeneratorContext.empty(), sufficient for the resource-independent duplicate family, and succeeded. No resources changed.",
+  "new_gec_tests": {
+    "command": "$env:PYTHONPATH='src'; .\\.venv\\Scripts\\python.exe -B -m unittest tests.test_duplicate_mixer tests.test_experimental_stage3_continuation -v",
+    "cwd": "Grammar-Error-Correction",
+    "passed": 14,
+    "seconds": 4.227,
+    "exit_code": 0
+  }
+}

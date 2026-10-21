@@ -1,0 +1,11 @@
+# Architecture and prior-plan reconciliation
+
+The original GEG registered `$DELETE` / `duplicate_word` inverse transformation is `_duplicate` in `Grammar-Error-Generator/src/geg/generators.py`. It chooses only the 15 `PROVISIONAL_FUNCTION_CONTEXTS`, rejects token prefixes/suffixes and first/last whitespace-token positions, constructs one erroneous copy insertion from a clean sentence, and emits offsets plus a replayable `duplicate` generation operation. Existing generation version and defaults remain historical. The experimental helper uses explicit `duplicate-word-v2-diverse` provenance and the existing registered correction tag, operation format and candidate constructor.
+
+Stage 3 schema and canonical label construction belong to `Grammar-Error-Correction`; the mixer must remain there. GEG only supplies clean?one-error candidates and replayable operations. This prevents the generator acquiring training-model/checkpoint/schema business logic.
+
+The prior `duplicate_training_experiment.md` explicitly labels its 1,600/800/800 component counts as proposed and unexecuted. Preserve its 3,200 total cap, while using the new task's explicit experimental 1,280 diversified duplicates + 1,920 nonduplicate replay (40/60). The older suggestion to initialize from a Stage 2 parent describes the native trainer's existing contract. The new task explicitly requests current Stage 3 continuation, which requires a separate experimental entry point rather than misusing native resume against changed hashes. Production trainer safeguards must remain unchanged.
+
+Classification is a deterministic surface proxy: membership of the existing 28-item FUNCTION_WORDS set means function; other eligible lexical forms mean content proxy. This is not a POS annotation or claim every outside form is Filipino content vocabulary. Only Unicode letter/mark lexical cores qualify, and punctuation, markup, numbers, URL/email, internal hyphens and already adjacent equivalent forms are rejected conservatively.
+
+Read-only baseline git states are preserved in baseline_git_state.json; production app/frontend/checkpoint hashes are preserved in protected_baseline.json. Historical reports remain unmodified. Final TEST data is not opened for preparation or selection.

@@ -1,0 +1,31 @@
+{
+  "seed": 42,
+  "all_data_config_artifacts_byte_identical": true,
+  "artifacts": {
+    "duplicate_bounded_v1.parquet": {
+      "primary_sha256": "ee86f92d7aa9de530164e075e91a93581ed25d8a7095ecbc6098717c78632d6f",
+      "repeat_sha256": "ee86f92d7aa9de530164e075e91a93581ed25d8a7095ecbc6098717c78632d6f",
+      "identical": true
+    },
+    "stage3_replay_bounded_v1.parquet": {
+      "primary_sha256": "be49b7ecfdbcee00554c9bebbf59ccaa5983d94ebc87eadc02b1ebaa402be5a8",
+      "repeat_sha256": "be49b7ecfdbcee00554c9bebbf59ccaa5983d94ebc87eadc02b1ebaa402be5a8",
+      "identical": true
+    },
+    "duplicate_bounded_mixed_v1.parquet": {
+      "primary_sha256": "5f41490677888ecd074ef298c503cbcedbed0ca4e84a6087d67cbd2a633b8079",
+      "repeat_sha256": "5f41490677888ecd074ef298c503cbcedbed0ca4e84a6087d67cbd2a633b8079",
+      "identical": true
+    },
+    "duplicate_bounded_v1_distribution.csv": {
+      "primary_sha256": "5844f4f3d1fab38c8ac5fb019c431ebbd115d8b75c334db491f32068a6310b0d",
+      "repeat_sha256": "5844f4f3d1fab38c8ac5fb019c431ebbd115d8b75c334db491f32068a6310b0d",
+      "identical": true
+    },
+    "duplicate_bounded_mixed_v1_resolved_config.json": {
+      "primary_sha256": "38760d53fdad5f1ddaeec2070c3fde64da7549a1fb94bf87440a1125911c0ab2",
+      "repeat_sha256": "38760d53fdad5f1ddaeec2070c3fde64da7549a1fb94bf87440a1125911c0ab2",
+      "identical": true
+    }
+  }
+}
